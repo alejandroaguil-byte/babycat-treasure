@@ -4,7 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Babycat Treasure</title>
-    <link rel="icon" href="/assets/icon.svg" />
+    <link rel="icon" href="./icons/icon.svg" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <meta name="theme-color" content="#ff8a3d" />
+    <meta name="description" content="A cozy 3D diorama puzzle adventure: guide Mochi the kitten to her glass of milk." />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
@@ -25,10 +29,12 @@
         <button id="rot-left" class="icon-btn" title="Rotate camera left (Q)">&#10226;</button>
         <button id="rot-right" class="icon-btn" title="Rotate camera right (E)">&#10227;</button>
         <button id="mute" class="icon-btn" title="Toggle sound (M)">&#9835;</button>
+        <button id="pause" class="icon-btn" title="Pause (Esc)">&#10074;&#10074;</button>
       </div>
       <div id="held-hint" class="held-hint hidden">
         Holding a yarn ball! Press <kbd>Space</kbd> or click an enemy to throw it.
       </div>
+      <button id="btn-throw" class="throw-btn hidden" aria-label="Throw yarn ball">Throw!</button>
       <div class="help">
         Click a tile to walk &middot; Drag to rotate &middot; Scroll to zoom &middot; <kbd>WASD</kbd> step &middot; <kbd>Q</kbd>/<kbd>E</kbd> turn camera
       </div>
@@ -45,6 +51,7 @@
 
     <div id="screen-start" class="screen">
       <div class="panel">
+        <button class="icon-btn corner-btn" data-action="settings" title="Settings">&#9881;</button>
         <div class="logo">Babycat <span>Treasure</span></div>
         <p>
           Mochi the kitten is thirsty! Explore the tiny diorama, find the 3 hidden gems and climb the
@@ -86,6 +93,41 @@
           <button class="big-btn" data-action="replay">Try again</button>
           <button class="small-btn" data-action="levels">Levels</button>
         </div>
+      </div>
+    </div>
+
+    <div id="screen-pause" class="screen hidden">
+      <div class="panel">
+        <div class="logo small">Paused</div>
+        <div class="menu-col">
+          <button class="big-btn" data-action="resume">Resume</button>
+          <button class="small-btn" data-action="replay">Restart level</button>
+          <button class="small-btn" data-action="settings">Settings</button>
+          <button class="small-btn" data-action="levels">Levels</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="screen-settings" class="screen hidden">
+      <div class="panel">
+        <div class="logo small">Settings</div>
+        <div class="settings-grid">
+          <label for="set-music">Music</label>
+          <input id="set-music" type="range" min="0" max="1" step="0.05" />
+          <label for="set-sfx">Sound effects</label>
+          <input id="set-sfx" type="range" min="0" max="1" step="0.05" />
+          <label for="set-quality">Graphics</label>
+          <select id="set-quality">
+            <option value="auto">Auto</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <label for="set-vibration">Vibration</label>
+          <input id="set-vibration" type="checkbox" />
+        </div>
+        <p id="quality-note" class="note"></p>
+        <button class="big-btn" data-action="settings-back">Done</button>
       </div>
     </div>
 

@@ -5,7 +5,10 @@ import {
   parseLevel, createState, findPath, canStep, heightAt, isWalkable, sameCell, slideNext, windPush, DIRS,
 } from './game/grid.js';
 import { buildWorld } from './world/build.js';
-import { THEMES } from './world/themes.js';
+import { THEMES, skyTexture } from './world/themes.js';
+import { PostFX, QualityGovernor, autoQuality } from './render/postfx.js';
+import { addOutline } from './render/outline.js';
+import { settings, saveSettings, vibrate } from './ui/settings.js';
 import { createCat, animateCat, createYarnBall } from './world/models.js';
 import { createEnemies } from './mechanics/enemies.js';
 import { Weather } from './mechanics/weather.js';
@@ -15,12 +18,12 @@ import { Tweens, ease } from './tween.js';
 
 // ------------------------------------------------------------ engine setup
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+// Neutral keeps the pastel sky saturated when post-processing tone-maps the whole frame.
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 1.0;
 document.getElementById('app').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -41,8 +44,21 @@ sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.02;
 scene.add(sun);
 
+const postfx = new PostFX(renderer, scene, camera, sun);
+const governor = new QualityGovernor((level, fps) => {
+  postfx.setQuality(level);
+  console.info(`[quality] ${Math.round(fps)} fps, switching to ${level}`);
+});
+function applyQuality() {
+  const level = settings.quality === 'auto' ? autoQuality() : settings.quality;
+  governor.reset(level);
+  postfx.setQuality(level);
+}
+applyQuality();
+
 const effects = new Effects(scene);
 const audio = new AudioEngine();
+audio.setVolumes(settings.music, settings.sfx);
 const tweens = new Tweens();
 
 const markerMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.8, depthWrite: false });
@@ -98,6 +114,8 @@ function resetRuntime() {
 
 function applyTheme() {
   document.body.style.background = theme.sky;
+  postfx.sky?.texture.dispose();
+  postfx.setSky(theme.sky.match(/#[0-9a-f]{6}/gi), skyTexture(theme));
   hemi.color.set(theme.hemi[0]);
   hemi.groundColor.set(theme.hemi[1]);
   hemi.intensity = theme.hemi[2];
@@ -163,6 +181,9 @@ function loadLevel(index) {
   enemies = createEnemies(def, {
     level, state, cellCenter, effects, audio, group: levelGroup, catCell: () => actor.cell,
   });
+  addOutline(cat.root, 0.07);
+  enemies.forEach((e) => addOutline(e.root, 0.06));
+  postfx.setTiltStrength(1);
   weather = new Weather({ scene, def, level, fog: scene.fog, hemi, audio, ui });
 
   const size = Math.max(level.width, level.depth) / 9;
@@ -210,6 +231,7 @@ function renderHud() {
     .join('');
   ui.coins.textContent = game.coins;
   ui.held.classList.toggle('hidden', !game.held);
+  $('btn-throw').classList.toggle('hidden', !game.held);
   ui.keySlot.classList.toggle('hidden', !def.keys);
   ui.keySlot.classList.toggle('got', game.keys > 0);
   ui.keyLabel.textContent = game.keys > 0 ? 'Gate open!' : 'Find the key';
@@ -479,6 +501,7 @@ function collect(item) {
       effects.ring(item.root.position, item.color);
       game.shake = 0.08;
       toast(`Gem found! (${game.gems}/${def.gems.length})`);
+      vibrate(30);
       break;
     case 'key':
       game.keys++;
@@ -591,6 +614,7 @@ function damage(source, from) {
   ui.flash.classList.add('on');
   setTimeout(() => ui.flash.classList.remove('on'), 60);
   effects.burst({ pos: cat.root.position.clone().add(new THREE.Vector3(0, 0.6, 0)), count: 10, colors: ['#ffe066', '#ff6b6b'], speed: 2, up: 2, size: 0.2 });
+  vibrate(source === 'fall' ? [80, 40, 220] : 160);
   renderHud();
   if (from) knockBack(from);
   if (game.hearts <= 0) gameOver(source);
@@ -730,8 +754,71 @@ function tweenCamera(pos, target, duration, easing = ease.inOutCubic) {
 
 // ------------------------------------------------------------ flow
 function hideScreens() {
-  ['screen-start', 'screen-win', 'screen-lose'].forEach((id) => $(id).classList.add('hidden'));
+  ['screen-start', 'screen-win', 'screen-lose', 'screen-pause', 'screen-settings'].forEach((id) => $(id).classList.add('hidden'));
 }
+
+// ------------------------------------------------------------ pause + settings
+function pauseGame() {
+  if (game.mode !== 'play' && game.mode !== 'intro') return;
+  game.resumeMode = game.mode;
+  game.mode = 'paused';
+  controls.enabled = false;
+  hoverMarker.visible = false;
+  keys.clear();
+  audio.pause();
+  $('screen-pause').classList.remove('hidden');
+}
+
+function resumeGame() {
+  if (game.mode !== 'paused') return;
+  $('screen-pause').classList.add('hidden');
+  $('screen-settings').classList.add('hidden');
+  game.mode = game.resumeMode;
+  controls.enabled = game.mode === 'play';
+  audio.resume();
+}
+
+let settingsReturn = null;
+function openSettings(from) {
+  settingsReturn = from;
+  $(from).classList.add('hidden');
+  $('set-music').value = settings.music;
+  $('set-sfx').value = settings.sfx;
+  $('set-quality').value = settings.quality;
+  $('set-vibration').checked = settings.vibration;
+  $('set-vibration').disabled = !('vibrate' in navigator);
+  renderQualityNote();
+  $('screen-settings').classList.remove('hidden');
+}
+
+function renderQualityNote() {
+  $('quality-note').textContent = settings.quality === 'auto' ? `Auto picked: ${postfx.level}` : '';
+}
+
+function closeSettings() {
+  saveSettings();
+  $('screen-settings').classList.add('hidden');
+  $(settingsReturn ?? 'screen-start').classList.remove('hidden');
+}
+
+$('set-music').addEventListener('input', (e) => {
+  settings.music = Number(e.target.value);
+  audio.setVolumes(settings.music, settings.sfx);
+});
+$('set-sfx').addEventListener('input', (e) => {
+  settings.sfx = Number(e.target.value);
+  audio.setVolumes(settings.music, settings.sfx);
+  audio.coin();
+});
+$('set-quality').addEventListener('change', (e) => {
+  settings.quality = e.target.value;
+  applyQuality();
+  renderQualityNote();
+});
+$('set-vibration').addEventListener('change', (e) => {
+  settings.vibration = e.target.checked;
+  vibrate(60);
+});
 
 async function startLevel(index) {
   audio.init();
@@ -790,6 +877,7 @@ async function victory() {
   actor.yaw = Math.atan2(toCam.x, toCam.z);
   cat.lookAtCamera = true;
   cat.mode = 'idle';
+  postfx.setTiltStrength(0.3);
   await tweenCamera(catPos.clone().addScaledVector(toCam, 3.2).add(new THREE.Vector3(0, 1.4, 0)), catPos.clone().add(new THREE.Vector3(0, 0.55, 0)), 1.3);
   if (!alive()) return;
 
@@ -982,7 +1070,13 @@ renderer.domElement.addEventListener('pointermove', (e) => {
 
 window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyM') toggleMute();
+  if (e.code === 'Escape' || e.code === 'KeyP') {
+    if (game.mode === 'paused') resumeGame();
+    else pauseGame();
+    return;
+  }
   if (game.mode !== 'play') return;
+  if (e.code === 'KeyR') startLevel(levelIndex);
   if (KEY_DIRS[e.code]) {
     keys.add(e.code);
     actor.path = [];
@@ -1010,6 +1104,17 @@ $('level-select').addEventListener('click', (e) => {
 $('btn-next').addEventListener('click', () => startLevel(levelIndex + 1));
 document.querySelectorAll('[data-action="replay"]').forEach((b) => b.addEventListener('click', () => startLevel(levelIndex)));
 document.querySelectorAll('[data-action="levels"]').forEach((b) => b.addEventListener('click', showLevelSelect));
+$('pause').addEventListener('click', pauseGame);
+$('btn-throw').addEventListener('click', () => throwYarn());
+document.querySelectorAll('[data-action="resume"]').forEach((b) => b.addEventListener('click', resumeGame));
+document.querySelectorAll('[data-action="settings"]').forEach((b) =>
+  b.addEventListener('click', () => openSettings(b.closest('.screen').id)),
+);
+document.querySelector('[data-action="settings-back"]').addEventListener('click', closeSettings);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && game.mode === 'play') pauseGame();
+});
+if (window.matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
 $('rot-left').addEventListener('click', () => rotateCamera(-Math.PI / 2));
 $('rot-right').addEventListener('click', () => rotateCamera(Math.PI / 2));
 ui.mute.addEventListener('click', toggleMute);
@@ -1017,7 +1122,7 @@ ui.mute.addEventListener('click', toggleMute);
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  postfx.resize();
 });
 
 // ------------------------------------------------------------ loop
@@ -1025,9 +1130,18 @@ const timer = new THREE.Timer();
 timer.connect(document);
 function frame(timestamp) {
   timer.update(timestamp);
-  const dt = Math.min(timer.getDelta(), 0.05);
+  const realDt = timer.getDelta();
+  const dt = Math.min(realDt, 0.05);
   const t = timer.getElapsed();
-  if (game.mode === 'play') game.time += dt;
+  if (game.mode === 'paused') {
+    postfx.render();
+    requestAnimationFrame(frame);
+    return;
+  }
+  if (game.mode === 'play') {
+    game.time += dt;
+    if (settings.quality === 'auto') governor.sample(realDt);
+  }
 
   tweens.update(dt);
   if (game.mode === 'play' || game.mode === 'gameover') updateActor(dt);
@@ -1101,13 +1215,18 @@ function frame(timestamp) {
     camera.position.add(new THREE.Vector3((Math.random() - 0.5) * game.shake, (Math.random() - 0.5) * game.shake, (Math.random() - 0.5) * game.shake));
     game.shake = Math.max(0, game.shake - dt * 0.6);
   }
-  renderer.render(scene, camera);
+  postfx.render();
   camera.position.copy(saved);
   requestAnimationFrame(frame);
 }
 
 showLevelSelect();
 frame();
+
+// Offline support / installable app (production builds only).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}
 
 // Debug handle for automated smoke tests in development builds only.
 if (import.meta.env.DEV) {
@@ -1119,6 +1238,7 @@ if (import.meta.env.DEV) {
     get enemies() { return enemies; },
     get weather() { return weather; },
     get camera() { return camera; },
-    tweens, goTo, throwYarn, startLevel, progress,
+    get postfx() { return postfx; },
+    tweens, goTo, throwYarn, startLevel, progress, pauseGame, resumeGame, settings,
   };
 }

@@ -74,6 +74,10 @@ export class AudioEngine {
     this.music = ctx.createGain();
     this.music.gain.value = 0.3;
     this.music.connect(this.master);
+    if (this.volumes) {
+      this.music.gain.value = 0.3 * this.volumes.music;
+      this.sfx.gain.value = 0.75 * this.volumes.sfx;
+    }
     // Soft echo on the music bus.
     const delay = ctx.createDelay();
     delay.delayTime.value = (60 / TEMPO) * 0.75;
@@ -89,6 +93,22 @@ export class AudioEngine {
     this.noiseBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
     const data = this.noiseBuffer.getChannelData(0);
     for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+  }
+
+  /** Applies player volume settings (0..1) on top of the base mix. */
+  setVolumes(music, sfx) {
+    this.volumes = { music, sfx };
+    if (!this.ctx) return;
+    this.music.gain.setTargetAtTime(0.3 * music, this.ctx.currentTime, 0.05);
+    this.sfx.gain.setTargetAtTime(0.75 * sfx, this.ctx.currentTime, 0.05);
+  }
+
+  pause() {
+    this.ctx?.suspend();
+  }
+
+  resume() {
+    this.ctx?.resume();
   }
 
   setMuted(muted) {

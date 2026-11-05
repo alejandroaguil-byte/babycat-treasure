@@ -486,3 +486,99 @@ kbd {
 .flash.white.on {
   opacity: 0.7;
 }
+
+/* Pause + settings */
+.panel {
+  position: relative;
+}
+.corner-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+.menu-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+}
+.settings-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px 18px;
+  align-items: center;
+  text-align: left;
+  margin: 18px 0 8px;
+  font-weight: bold;
+}
+.settings-grid input[type='range'] {
+  accent-color: #ff8a3d;
+  width: 100%;
+}
+.settings-grid input[type='checkbox'] {
+  width: 22px;
+  height: 22px;
+  accent-color: #ff8a3d;
+  justify-self: start;
+}
+.settings-grid select {
+  font: inherit;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 2px solid #ecd9bf;
+  background: #fff;
+}
+.note {
+  font-size: 13px;
+  color: #8a7462;
+  min-height: 1em;
+}
+.throw-btn {
+  position: absolute;
+  right: 22px;
+  bottom: 70px;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  border: none;
+  font: inherit;
+  font-weight: 900;
+  font-size: 18px;
+  color: #fff;
+  background: radial-gradient(circle at 35% 30%, #ff9fc4, #ff6fa3 60%, #e24d86);
+  box-shadow: 0 6px 0 #b8336a;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+.throw-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #b8336a;
+}
+
+/* Touch devices: bigger targets, no keyboard hints */
+body.touch .icon-btn {
+  width: 56px;
+  height: 56px;
+  font-size: 26px;
+}
+body.touch .help,
+body.touch .held-hint {
+  display: none;
+}
+@media (max-width: 640px) {
+  .level-label {
+    top: auto;
+    bottom: 14px;
+  }
+  .weather {
+    top: 84px;
+  }
+  .panel {
+    padding: 24px 20px;
+    margin: 0 16px;
+  }
+  .title-card .name {
+    font-size: 38px;
+  }
+}

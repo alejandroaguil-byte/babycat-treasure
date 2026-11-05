@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 // Visual identity of each environment: palette, sky, lights and fog.
 export const THEMES = {
   meadow: {
@@ -61,3 +63,19 @@ export const THEMES = {
     ice: '#a9dcff',
   },
 };
+
+/** Vertical gradient texture built from the colors of a theme's CSS sky. */
+export function skyTexture(theme) {
+  const colors = theme.sky.match(/#[0-9a-f]{6}/gi);
+  const c = document.createElement('canvas');
+  c.width = 4;
+  c.height = 256;
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, 0, 0, 256);
+  colors.forEach((col, i) => grad.addColorStop(i / (colors.length - 1), col));
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 4, 256);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
