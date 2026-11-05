@@ -16,15 +16,15 @@ const turnTowards = (obj, yaw, dt, speed = 8) => {
 /** Walks a closed loop of cells. Dust bunnies are defeated by yarn; hedgehogs only get stunned. */
 function patrol(def, ctx, model, animate) {
   const points = def.path.map((c) => ctx.cellCenter(c));
-  const e = { kind: def.type, root: model.root, alive: true, seg: 0, t: 0, stun: 0 };
+  const e = { kind: def.type, root: model.root, alive: true, seg: 0, t: 0, stunTime: 0 };
   e.root.position.copy(points[0]);
   e.update = (dt) => {
     if (!e.alive) return;
-    if (e.stun > 0) {
-      e.stun -= dt;
-      e.root.rotation.z = Math.sin(e.stun * 20) * 0.15;
+    if (e.stunTime > 0) {
+      e.stunTime -= dt;
+      e.root.rotation.z = Math.sin(e.stunTime * 20) * 0.15;
       if (model.stars) {
-        model.stars.visible = e.stun > 0;
+        model.stars.visible = e.stunTime > 0;
         model.stars.rotation.y += dt * 6;
       }
       return;
@@ -41,14 +41,18 @@ function patrol(def, ctx, model, animate) {
     e.root.position.lerpVectors(a, b, Math.min(1, e.t));
     turnTowards(e.root, Math.atan2(b.x - a.x, b.z - a.z), dt);
   };
-  e.hits = (catPos) => e.alive && e.stun <= 0 && touching(catPos, e.root.position);
+  e.hits = (catPos) => e.alive && e.stunTime <= 0 && touching(catPos, e.root.position);
   e.center = () => e.root.position.clone().add(new THREE.Vector3(0, 0.3, 0));
   e.onYarn = () => {
     if (def.type === 'hedgehog') {
-      e.stun = 3.5;
+      e.stun(3.5);
       return 'stun';
     }
     return 'defeat';
+  };
+  /** Freezes the enemy for `seconds` (yarn on hedgehogs, Luna's flash). */
+  e.stun = (seconds) => {
+    e.stunTime = Math.max(e.stunTime, seconds);
   };
   return e;
 }
@@ -71,8 +75,9 @@ function hedgehog(def, ctx) {
 /** Hovering ghost that chases the kitten when she comes close, then drifts home. */
 function wisp(def, ctx) {
   const m = createWisp();
-  const e = { kind: 'wisp', root: m.root, alive: true, cell: [...def.home], next: null, t: 0, time: 0 };
+  const e = { kind: 'wisp', root: m.root, alive: true, cell: [...def.home], next: null, t: 0, time: 0, stunTime: 0 };
   const hover = (cell) => ctx.cellCenter(cell).add(new THREE.Vector3(0, 0.45, 0));
+  const baseGlow = m.ghostMat.emissiveIntensity;
   e.root.position.copy(hover(e.cell));
   const chooseNext = () => {
     const catCell = ctx.catCell();
@@ -86,6 +91,16 @@ function wisp(def, ctx) {
     if (!e.alive) return;
     e.time += dt;
     m.body.position.y = Math.sin(e.time * 3) * 0.08;
+    if (e.stunTime > 0) {
+      // dazed: frozen in place, dim and flickering
+      e.stunTime -= dt;
+      m.ghostMat.opacity = 0.25 + Math.abs(Math.sin(e.time * 22)) * 0.2;
+      m.ghostMat.emissiveIntensity = 0.25;
+      m.body.rotation.z = Math.sin(e.time * 18) * 0.2;
+      return;
+    }
+    m.ghostMat.emissiveIntensity = baseGlow;
+    m.body.rotation.z = 0;
     m.ghostMat.opacity = 0.7 + Math.sin(e.time * 9) * 0.15;
     if (!e.next) {
       e.next = chooseNext();
@@ -102,9 +117,14 @@ function wisp(def, ctx) {
       e.next = null;
     }
   };
-  e.hits = (catPos) => e.alive && touching(catPos.clone().add(new THREE.Vector3(0, 0.45, 0)), e.root.position);
+  e.hits = (catPos) =>
+    e.alive && e.stunTime <= 0 && touching(catPos.clone().add(new THREE.Vector3(0, 0.45, 0)), e.root.position);
   e.center = () => e.root.position.clone();
   e.onYarn = () => 'defeat';
+  /** Freezes the wisp for `seconds`: it stops chasing and cannot hurt the kitten. */
+  e.stun = (seconds) => {
+    e.stunTime = Math.max(e.stunTime, seconds);
+  };
   return e;
 }
 

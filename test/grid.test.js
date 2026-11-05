@@ -111,3 +111,20 @@ test('chasers walk single steps', () => {
   const path = stepPath(L3, createState(), [5, 7], [1, 9]);
   assert.ok(path && path.length >= 5);
 });
+
+test('a companion standing upwind shelters the kitten from the wind', () => {
+  const L2 = parseLevel(LEVELS[1]);
+  assert.equal(windPush(L2, createState(), [1, 1], [1, 0], [[0, 1]]), null);
+});
+
+test('without companions the wind behaves exactly as before', () => {
+  const L2 = parseLevel(LEVELS[1]);
+  const s = createState();
+  assert.deepEqual(windPush(L2, s, [1, 1], [1, 0]), { fall: true });
+  assert.deepEqual(windPush(L2, s, [1, 1], [1, 0], []), { fall: true });
+});
+
+test('a companion that is not upwind gives no shelter', () => {
+  const L2 = parseLevel(LEVELS[1]);
+  assert.deepEqual(windPush(L2, createState(), [1, 1], [1, 0], [[1, 0], [2, 1], [1, 2]]), { fall: true });
+});

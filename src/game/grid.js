@@ -173,12 +173,16 @@ export function stepPath(level, state, from, to) {
   return null;
 }
 
-/** Where a wind gust pushes the kitten: {to} | {fall: true} | null (holds on). */
-export function windPush(level, state, cell, dir) {
+/**
+ * Where a wind gust pushes the kitten: {to} | {fall: true} | null (holds on).
+ * `shelters` are cells where companions stand; one standing upwind shelters her.
+ */
+export function windPush(level, state, cell, dir, shelters = []) {
   const upwind = [cell[0] - dir[0], cell[1] - dir[1]];
   const h = heightAt(level, state, ...cell);
   const hUp = heightAt(level, state, ...upwind);
   if (isBlocked(level, state, upwind) || (hUp !== null && hUp > h)) return null; // sheltered
+  if (shelters.some((c) => sameCell(c, upwind))) return null; // a companion blocks the gust
   const to = [cell[0] + dir[0], cell[1] + dir[1]];
   const hTo = heightAt(level, state, ...to);
   if (hTo === null || hTo < h) return isBlocked(level, state, to) ? null : { fall: true };
