@@ -14,7 +14,6 @@ export const QUALITY = {
   medium: { pixelRatio: 1.5, shadowMap: 1024, bloom: true, tiltShift: true },
   low: { pixelRatio: 1, shadowMap: 512, bloom: false, tiltShift: false },
 };
-export const QUALITY_ORDER = ['high', 'medium', 'low'];
 
 const TILT_BLUR = 2.2; // texels; higher = stronger miniature effect
 
@@ -150,41 +149,4 @@ export class PostFX {
   }
 }
 
-/**
- * Watches the frame rate while playing and steps quality down when the device
- * struggles. Only used when the player picked "auto".
- */
-export class QualityGovernor {
-  constructor(onChange) {
-    this.onChange = onChange;
-    this.reset('high');
-  }
-
-  reset(level) {
-    this.level = level;
-    this.frames = 0;
-    this.elapsed = 0;
-    this.cooldown = 1.5;
-  }
-
-  sample(realDt) {
-    if ((this.cooldown -= realDt) > 0) return;
-    this.frames++;
-    this.elapsed += realDt;
-    if (this.elapsed < 2.5) return;
-    const fps = this.frames / this.elapsed;
-    this.frames = 0;
-    this.elapsed = 0;
-    const idx = QUALITY_ORDER.indexOf(this.level);
-    if (fps < 42 && idx < QUALITY_ORDER.length - 1) {
-      this.level = QUALITY_ORDER[idx + 1];
-      this.cooldown = 2;
-      this.onChange(this.level, fps);
-    }
-  }
-}
-
-/** Initial guess for "auto": phones and tablets start at medium. */
-export function autoQuality() {
-  return window.matchMedia('(pointer: coarse)').matches ? 'medium' : 'high';
-}
+export { QualityGovernor, autoQuality, QUALITY_ORDER } from './governor.js';

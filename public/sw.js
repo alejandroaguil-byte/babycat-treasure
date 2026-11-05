@@ -17,6 +17,15 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+/** Drops cached build assets that the latest page no longer references. */
+async function pruneAssets(html) {
+  const live = new Set([...html.matchAll(/assets\/[^"'\s)]+/g)].map((m) => new URL(m[0], self.registration.scope).href));
+  const cache = await caches.open(CACHE);
+  for (const request of await cache.keys()) {
+    if (request.url.includes('/assets/') && !live.has(request.url)) await cache.delete(request);
+  }
+}
+
 const store = (request, response) => {
   if (response.ok) {
     const copy = response.clone();
@@ -31,7 +40,10 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
-        .then((response) => store(request, response))
+        .then((response) => {
+          if (response.ok) response.clone().text().then(pruneAssets);
+          return store(request, response);
+        })
         .catch(() => caches.match(request).then((hit) => hit ?? caches.match('./index.html'))),
     );
     return;

@@ -184,6 +184,7 @@ function loadLevel(index) {
   addOutline(cat.root, 0.07);
   enemies.forEach((e) => addOutline(e.root, 0.06));
   postfx.setTiltStrength(1);
+  if (settings.quality === 'auto') governor.reset(postfx.level);
   weather = new Weather({ scene, def, level, fog: scene.fog, hemi, audio, ui });
 
   const size = Math.max(level.width, level.depth) / 9;
@@ -771,6 +772,7 @@ function pauseGame() {
 
 function resumeGame() {
   if (game.mode !== 'paused') return;
+  saveSettings(); // Esc can close the settings panel directly
   $('screen-pause').classList.add('hidden');
   $('screen-settings').classList.add('hidden');
   game.mode = game.resumeMode;
@@ -1123,6 +1125,7 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   postfx.resize();
+  if (game.mode === 'paused') postfx.render();
 });
 
 // ------------------------------------------------------------ loop
@@ -1134,7 +1137,7 @@ function frame(timestamp) {
   const dt = Math.min(realDt, 0.05);
   const t = timer.getElapsed();
   if (game.mode === 'paused') {
-    postfx.render();
+    // The last frame stays on screen; skip the post-processing work to save battery.
     requestAnimationFrame(frame);
     return;
   }
