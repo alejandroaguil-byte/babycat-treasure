@@ -26,16 +26,24 @@
       <div id="level-label" class="level-label"></div>
       <div id="weather" class="weather hidden"><span class="arrow">&#10148;</span><span class="label">Calm</span></div>
       <div class="hud-right">
-        <button id="rot-left" class="icon-btn" title="Rotate camera left (Q)">&#10226;</button>
-        <button id="rot-right" class="icon-btn" title="Rotate camera right (E)">&#10227;</button>
-        <button id="mute" class="icon-btn" title="Toggle sound (M)">&#9835;</button>
-        <button id="pause" class="icon-btn" title="Pause (Esc)">&#10074;&#10074;</button>
+        <button id="rot-left" class="icon-btn" title="Rotate camera left (Q)" data-i18n-title="hud.rotLeft" data-i18n-aria="hud.rotLeft">&#10226;</button>
+        <button id="rot-right" class="icon-btn" title="Rotate camera right (E)" data-i18n-title="hud.rotRight" data-i18n-aria="hud.rotRight">&#10227;</button>
+        <button id="mute" class="icon-btn" title="Toggle sound (M)" data-i18n-title="hud.mute" data-i18n-aria="hud.mute">&#9835;</button>
+        <button id="pause" class="icon-btn" title="Pause (Esc)" data-i18n-title="hud.pause" data-i18n-aria="hud.pause">&#10074;&#10074;</button>
       </div>
-      <div id="held-hint" class="held-hint hidden">
+      <div id="held-hint" class="held-hint hidden" data-i18n-html="hud.heldHint">
         Holding a yarn ball! Press <kbd>Space</kbd> or click an enemy to throw it.
       </div>
-      <button id="btn-throw" class="throw-btn hidden" aria-label="Throw yarn ball">Throw!</button>
-      <div class="help">
+      <button id="btn-throw" class="throw-btn hidden" aria-label="Throw yarn ball" data-i18n="hud.throw" data-i18n-aria="hud.throwAria">Throw!</button>
+      <div class="abilities">
+        <button id="btn-pip" class="ability-btn pip-btn" title="Ask Pip for a hint" data-i18n-title="hud.pip" data-i18n-aria="hud.pip">
+          <span class="ability-icon" aria-hidden="true">&#128038;</span><span id="pip-uses" class="ability-badge">3</span>
+        </button>
+        <button id="btn-luna" class="ability-btn luna-btn hidden" title="Luna’s light flash" data-i18n-title="hud.luna" data-i18n-aria="hud.luna">
+          <span class="ability-icon" aria-hidden="true">&#129419;</span><span id="luna-cooldown" class="ability-cooldown"></span>
+        </button>
+      </div>
+      <div class="help" data-i18n-html="hud.help">
         Click a tile to walk &middot; Drag to rotate &middot; Scroll to zoom &middot; <kbd>WASD</kbd> step &middot; <kbd>Q</kbd>/<kbd>E</kbd> turn camera
       </div>
     </div>
@@ -43,7 +51,7 @@
     <div id="title-card" class="title-card hidden">
       <div class="episode"></div>
       <div class="name"></div>
-      <div class="mission">Collect the gems and reach the glass of milk!</div>
+      <div class="mission"></div>
     </div>
     <div id="toast" class="toast hidden"></div>
     <div id="flash" class="flash"></div>
@@ -51,83 +59,97 @@
 
     <div id="screen-start" class="screen">
       <div class="panel">
-        <button class="icon-btn corner-btn" data-action="settings" title="Settings">&#9881;</button>
+        <div class="lang-toggle" role="group" aria-label="Language" data-i18n-aria="start.language">
+          <button type="button" data-lang="es" lang="es">ES</button><button type="button" data-lang="en" lang="en">EN</button>
+        </div>
+        <button class="icon-btn corner-btn" data-action="settings" title="Settings" data-i18n-title="start.settings" data-i18n-aria="start.settings">&#9881;</button>
         <div class="logo">Babycat <span>Treasure</span></div>
-        <p>
-          Mochi the kitten is thirsty! Explore the tiny diorama, find the 3 hidden gems and climb the
-          tower to reach the well-earned glass of milk.
+        <p data-i18n="start.intro">
+          Lord Fluff blew Grandma Hazel’s four magic milk glasses across the floating islands! Help Mochi the kitten and
+          her friends bring them back.
         </p>
         <div id="level-select" class="level-select"></div>
         <ul class="controls">
-          <li><b>Click</b> a tile to walk there</li>
-          <li><b>Drag</b> to rotate the world &mdash; some secrets hide behind things</li>
-          <li><b>Kittens can't jump</b>: use ladders, switches and bridges</li>
-          <li>Pick up <b>yarn balls</b> and throw them at enemies</li>
-          <li>Every world brings new <b>weather</b>: wind, storms and snow</li>
+          <li data-i18n-html="start.controls.1"><b>Click</b> a tile to walk there</li>
+          <li data-i18n-html="start.controls.2"><b>Drag</b> to rotate the world &mdash; some secrets hide behind things</li>
+          <li data-i18n-html="start.controls.3"><b>Kittens can't jump</b>: use ladders, switches and bridges</li>
+          <li data-i18n-html="start.controls.4">Pick up <b>yarn balls</b> and throw them at enemies</li>
+          <li data-i18n-html="start.controls.5">Make <b>friends</b>: each one helps in their own way</li>
         </ul>
       </div>
     </div>
 
     <div id="screen-win" class="screen hidden">
       <div class="panel">
-        <div class="logo small">Mission complete!</div>
+        <div class="logo small" data-i18n="win.title">Mission complete!</div>
         <p id="win-text">Mochi drank the whole glass of milk. Purrfect!</p>
         <div class="results">
-          <div><span>Gems</span><b id="res-gems">0/3</b></div>
-          <div><span>Coins</span><b id="res-coins">0</b></div>
-          <div><span>Time</span><b id="res-time">0:00</b></div>
+          <div><span data-i18n="win.gems">Gems</span><b id="res-gems">0/3</b></div>
+          <div><span data-i18n="win.coins">Coins</span><b id="res-coins">0</b></div>
+          <div><span data-i18n="win.time">Time</span><b id="res-time">0:00</b></div>
         </div>
         <div class="btn-row">
-          <button class="big-btn" id="btn-next">Next level</button>
-          <button class="small-btn" data-action="replay">Replay</button>
-          <button class="small-btn" data-action="levels">Levels</button>
+          <button class="big-btn" id="btn-next" data-i18n="win.next">Next level</button>
+          <button class="small-btn" data-action="replay" data-i18n="btn.replay">Replay</button>
+          <button class="small-btn" data-action="levels" data-i18n="btn.levels">Levels</button>
         </div>
       </div>
     </div>
 
     <div id="screen-lose" class="screen hidden">
       <div class="panel">
-        <div class="logo small">Oh no!</div>
+        <div class="logo small" data-i18n="lose.title">Oh no!</div>
         <p id="lose-text">Mochi needs a nap. Try again?</p>
         <div class="btn-row">
-          <button class="big-btn" data-action="replay">Try again</button>
-          <button class="small-btn" data-action="levels">Levels</button>
+          <button class="big-btn" data-action="replay" data-i18n="lose.retry">Try again</button>
+          <button class="small-btn" data-action="levels" data-i18n="btn.levels">Levels</button>
         </div>
       </div>
     </div>
 
     <div id="screen-pause" class="screen hidden">
       <div class="panel">
-        <div class="logo small">Paused</div>
+        <div class="logo small" data-i18n="pause.title">Paused</div>
         <div class="menu-col">
-          <button class="big-btn" data-action="resume">Resume</button>
-          <button class="small-btn" data-action="replay">Restart level</button>
-          <button class="small-btn" data-action="settings">Settings</button>
-          <button class="small-btn" data-action="levels">Levels</button>
+          <button class="big-btn" data-action="resume" data-i18n="pause.resume">Resume</button>
+          <button class="small-btn" data-action="replay" data-i18n="pause.restart">Restart level</button>
+          <button class="small-btn" data-action="settings" data-i18n="pause.settings">Settings</button>
+          <button class="small-btn" data-action="levels" data-i18n="btn.levels">Levels</button>
         </div>
       </div>
     </div>
 
     <div id="screen-settings" class="screen hidden">
       <div class="panel">
-        <div class="logo small">Settings</div>
+        <div class="logo small" data-i18n="settings.title">Settings</div>
         <div class="settings-grid">
-          <label for="set-music">Music</label>
+          <label for="set-music" data-i18n="settings.music">Music</label>
           <input id="set-music" type="range" min="0" max="1" step="0.05" />
-          <label for="set-sfx">Sound effects</label>
+          <label for="set-sfx" data-i18n="settings.sfx">Sound effects</label>
           <input id="set-sfx" type="range" min="0" max="1" step="0.05" />
-          <label for="set-quality">Graphics</label>
+          <label for="set-quality" data-i18n="settings.graphics">Graphics</label>
           <select id="set-quality">
-            <option value="auto">Auto</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
+            <option value="auto" data-i18n="quality.auto">Auto</option>
+            <option value="high" data-i18n="quality.high">High</option>
+            <option value="medium" data-i18n="quality.medium">Medium</option>
+            <option value="low" data-i18n="quality.low">Low</option>
           </select>
-          <label for="set-vibration">Vibration</label>
+          <label for="set-vibration" data-i18n="settings.vibration">Vibration</label>
           <input id="set-vibration" type="checkbox" />
+          <label for="set-lang" data-i18n="settings.language">Language / Idioma</label>
+          <select id="set-lang">
+            <option value="es" lang="es">Español</option>
+            <option value="en" lang="en">English</option>
+          </select>
+          <label for="set-voice" data-i18n="settings.voices">Voices</label>
+          <select id="set-voice">
+            <option value="spoken" data-i18n="voice.spoken">Spoken</option>
+            <option value="chirps" data-i18n="voice.chirps">Chirps</option>
+            <option value="off" data-i18n="voice.off">Off</option>
+          </select>
         </div>
         <p id="quality-note" class="note"></p>
-        <button class="big-btn" data-action="settings-back">Done</button>
+        <button class="big-btn" data-action="settings-back" data-i18n="settings.done">Done</button>
       </div>
     </div>
 

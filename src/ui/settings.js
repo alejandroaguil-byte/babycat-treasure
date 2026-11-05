@@ -1,13 +1,23 @@
 // Player settings persisted in localStorage. Storage can be unavailable
 // (private mode), so every access is guarded and defaults always work.
 const KEY = 'babycat-settings';
-const DEFAULTS = { music: 0.8, sfx: 0.8, quality: 'auto', vibration: true };
+const DEFAULTS = { music: 0.8, sfx: 0.8, quality: 'auto', vibration: true, lang: 'en', voice: 'spoken' };
 
 const QUALITIES = new Set(['auto', 'high', 'medium', 'low']);
+const LANGS = new Set(['es', 'en']);
+const VOICES = new Set(['spoken', 'chirps', 'off']);
 const clamp01 = (v, fallback) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : fallback);
 
-/** Parses stored settings, repairing any value outside its domain. */
-export function parseSettings(raw) {
+/** Maps a BCP 47 tag such as navigator.language to a supported language: es* -> 'es', else 'en'. */
+export function deviceLang(tag) {
+  return String(tag ?? '').toLowerCase().startsWith('es') ? 'es' : 'en';
+}
+
+/**
+ * Parses stored settings, repairing any value outside its domain. PURE: the device
+ * language comes in through `lang` and is used when nothing valid is stored.
+ */
+export function parseSettings(raw, { lang = DEFAULTS.lang } = {}) {
   let stored = {};
   try {
     stored = JSON.parse(raw ?? '{}') ?? {};
@@ -19,14 +29,17 @@ export function parseSettings(raw) {
     sfx: clamp01(stored.sfx, DEFAULTS.sfx),
     quality: QUALITIES.has(stored.quality) ? stored.quality : DEFAULTS.quality,
     vibration: typeof stored.vibration === 'boolean' ? stored.vibration : DEFAULTS.vibration,
+    lang: LANGS.has(stored.lang) ? stored.lang : LANGS.has(lang) ? lang : DEFAULTS.lang,
+    voice: VOICES.has(stored.voice) ? stored.voice : DEFAULTS.voice,
   };
 }
 
 function load() {
+  const lang = deviceLang(globalThis.navigator?.language);
   try {
-    return parseSettings(localStorage.getItem(KEY));
+    return parseSettings(localStorage.getItem(KEY), { lang });
   } catch {
-    return { ...DEFAULTS };
+    return { ...DEFAULTS, lang };
   }
 }
 

@@ -556,6 +556,113 @@ kbd {
   box-shadow: 0 2px 0 #b8336a;
 }
 
+/* Companion abilities: Pip's hint flight and Luna's flash */
+.abilities {
+  position: absolute;
+  left: 16px;
+  bottom: 70px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: auto;
+}
+.ability-btn {
+  --cd: 0;
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  background: radial-gradient(circle at 35% 30%, #bfe2ff, #4aa3ff 65%, #2f7fd1);
+  box-shadow: 0 5px 0 #23609e;
+  touch-action: manipulation;
+}
+.ability-btn.luna-btn {
+  background: radial-gradient(circle at 35% 30%, #efe3ff, #b28dff 65%, #8a63d8);
+  box-shadow: 0 5px 0 #6a47ad;
+}
+.ability-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+}
+.ability-btn:disabled {
+  filter: grayscale(0.7);
+  opacity: 0.6;
+  cursor: default;
+}
+.ability-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+.ability-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background: #fff;
+  color: #2f7fd1;
+  font-weight: 900;
+  font-size: 14px;
+  line-height: 24px;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+}
+/* cooldown: a dark pie that shrinks as --cd goes from 1 to 0, plus the seconds left */
+.ability-cooldown {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 900;
+  font-size: 22px;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+  background: conic-gradient(rgba(40, 20, 70, 0.55) calc(var(--cd) * 360deg), transparent 0);
+  pointer-events: none;
+}
+.ability-btn.ready {
+  animation: ability-ready 0.5s;
+}
+@keyframes ability-ready {
+  50% {
+    transform: scale(1.18);
+  }
+}
+body.touch .ability-btn {
+  width: 72px;
+  height: 72px;
+}
+
+/* ES | EN toggle on the start screen */
+.lang-toggle {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  display: flex;
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.12);
+}
+.lang-toggle button {
+  border: none;
+  font: inherit;
+  font-weight: 900;
+  font-size: 14px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #8a7462;
+  cursor: pointer;
+}
+.lang-toggle button.on {
+  background: #ff8a3d;
+  color: #fff;
+}
+
 /* Touch devices: bigger targets, no keyboard hints */
 body.touch .icon-btn {
   width: 56px;

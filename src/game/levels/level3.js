@@ -3,10 +3,7 @@
 // that chases her, and five fireflies that raise the bridge to the tower.
 export default {
   id: 3,
-  episode: 'Episode 3',
-  title: 'Stormy Night Garden',
   theme: 'storm',
-  mission: 'Catch the 5 fireflies to light the way to the milk!',
   map: [
     '....33....',
     '222.33.222',
@@ -31,6 +28,7 @@ export default {
     '..wwwwww..',
     '..........',
   ],
+  companions: [{ id: 'luna', at: [2, 9] }],
   start: [1, 9],
   milk: [5, 0],
   ladders: [

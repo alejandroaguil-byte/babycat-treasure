@@ -3,10 +3,7 @@
 // warm the kitten up) and snowmen that roll snowballs down their lanes.
 export default {
   id: 4,
-  episode: 'Episode 4',
-  title: 'Snowy Peak',
   theme: 'snow',
-  mission: 'Stay warm, cross the ice and climb to the summit!',
   map: [
     '......4444.',
     '......4444.',
@@ -31,6 +28,7 @@ export default {
     '.....iiiiii',
     '.....iiiiii',
   ],
+  companions: [{ id: 'pom', at: [2, 9] }],
   start: [1, 9],
   milk: [9, 0],
   switch: [8, 8],

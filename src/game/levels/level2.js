@@ -2,10 +2,7 @@
 // shelter, edges are deadly), a fast hedgehog, a key that opens a gate and fish treats.
 export default {
   id: 2,
-  episode: 'Episode 2',
-  title: 'Windy Autumn Cliffs',
   theme: 'autumn',
-  mission: 'Find the key, mind the gusts and reach the milk!',
   map: [
     '1111.222.3',
     '.1.1.22223',
@@ -17,6 +14,7 @@ export default {
     '111.1111..',
     '111.1111..',
   ],
+  companions: [{ id: 'bruno', at: [0, 5] }],
   start: [1, 7],
   milk: [9, 0],
   ladders: [

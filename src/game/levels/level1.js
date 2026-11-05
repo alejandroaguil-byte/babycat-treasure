@@ -2,10 +2,7 @@
 // Map: each character is a column height ('.' = empty). Rows are z, columns are x.
 export default {
   id: 1,
-  episode: 'Episode 1',
-  title: 'The Milk Tower',
   theme: 'meadow',
-  mission: 'Collect the gems and reach the glass of milk!',
   map: [
     '2222..444',
     '2222.2222',

@@ -15,6 +15,13 @@ import { Weather } from './mechanics/weather.js';
 import { Effects } from './effects.js';
 import { AudioEngine } from './audio.js';
 import { Tweens, ease } from './tween.js';
+import { t, getLang, setLang, onLangChange, applyDom } from './i18n/index.js';
+import { SCENES } from './story/script.js';
+import { CHARACTERS } from './story/characters.js';
+import { VoiceEngine } from './story/voice.js';
+import { DialoguePlayer } from './story/dialogue.js';
+import { createPip, createBruno, createLuna, createPom, createTalkBubble } from './world/companions.js';
+import { Trail, Follower, PipController, nearestReachable } from './mechanics/companions.js';
 
 // ------------------------------------------------------------ engine setup
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -61,6 +68,17 @@ const audio = new AudioEngine();
 audio.setVolumes(settings.music, settings.sfx);
 const tweens = new Tweens();
 
+// ------------------------------------------------------------ story + language
+setLang(settings.lang);
+applyDom();
+const voice = new VoiceEngine({ audio });
+const dialogue = new DialoguePlayer({
+  voice,
+  getVoiceMode: () => settings.voice,
+  getVolume: () => settings.sfx,
+  getLabels: () => ({ skip: t('dialogue.skip'), next: t('dialogue.next') }),
+});
+
 const markerMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.8, depthWrite: false });
 const hoverMarker = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.42, 32), markerMat);
 hoverMarker.rotation.x = -Math.PI / 2;
@@ -91,6 +109,9 @@ let weather = null;
 let levelGroup = null;
 let ox = 0;
 let oz = 0;
+let pip = null;
+let companions = [];
+let trail = null;
 let defaultCam = new THREE.Vector3();
 const defaultTarget = new THREE.Vector3(0, 1.2, 0);
 
@@ -109,6 +130,7 @@ function resetRuntime() {
   Object.assign(game, {
     hearts: 3, gems: 0, coins: 0, held: null, invuln: 0, shake: 0, time: 0, projectiles: [],
     keys: 0, fireflies: 0, warmth: 100, coldTick: 0, spinning: false,
+    pipUses: PIP_USES, lunaCooldown: 0, hugTick: 0, hugToast: false, seenScenes: new Set(), pendingScenes: [], loseSource: null,
   });
 }
 
@@ -137,6 +159,7 @@ function disposeTree(root) {
 
 function unloadLevel() {
   game.run++;
+  dialogue.skip(); // a scene of the previous level never outlives it
   tweens.list.length = 0;
   effects.clear();
   weather?.dispose();
@@ -183,6 +206,7 @@ function loadLevel(index) {
   });
   addOutline(cat.root, 0.07);
   enemies.forEach((e) => addOutline(e.root, 0.06));
+  spawnCompanions();
   postfx.setTiltStrength(1);
   if (settings.quality === 'auto') governor.reset(postfx.level);
   weather = new Weather({ scene, def, level, fog: scene.fog, hemi, audio, ui });
@@ -195,9 +219,11 @@ function loadLevel(index) {
   camera.position.copy(defaultCam).multiplyScalar(2.2);
   controls.target.copy(defaultTarget);
   camera.lookAt(defaultTarget);
-  ui.levelLabel.textContent = `${def.episode} · ${def.title}`;
+  ui.levelLabel.textContent = levelText(def, 'episode') + ' · ' + levelText(def, 'title');
   renderHud();
 }
+
+const levelText = (d, field) => t(`level.${d.id}.${field}`);
 
 // ------------------------------------------------------------ HUD
 const $ = (id) => document.getElementById(id);
@@ -218,6 +244,10 @@ const ui = {
   warmthFill: $('warmth-fill'),
   levelLabel: $('level-label'),
   weather: $('weather'),
+  pipBtn: $('btn-pip'),
+  pipUses: $('pip-uses'),
+  lunaBtn: $('btn-luna'),
+  lunaCooldown: $('luna-cooldown'),
   flashWhite() {
     $('flash-white').classList.add('on');
     setTimeout(() => $('flash-white').classList.remove('on'), 80);
@@ -235,10 +265,14 @@ function renderHud() {
   $('btn-throw').classList.toggle('hidden', !game.held);
   ui.keySlot.classList.toggle('hidden', !def.keys);
   ui.keySlot.classList.toggle('got', game.keys > 0);
-  ui.keyLabel.textContent = game.keys > 0 ? 'Gate open!' : 'Find the key';
+  ui.keyLabel.textContent = t(game.keys > 0 ? 'hud.gateOpen' : 'hud.findKey');
   ui.fireflySlot.classList.toggle('hidden', !def.fireflies);
   ui.fireflyCount.textContent = `${game.fireflies}/${def.fireflies?.length ?? 0}`;
   ui.warmth.classList.toggle('hidden', !def.weather?.cold);
+  ui.pipUses.textContent = game.pipUses;
+  ui.pipBtn.disabled = !pip || pip.busy || game.pipUses <= 0;
+  ui.lunaBtn.classList.toggle('hidden', !joined('luna'));
+  renderLunaButton();
 }
 
 function bump(el) {
@@ -253,6 +287,224 @@ function toast(text) {
   ui.toast.style.animation = 'none';
   void ui.toast.offsetWidth;
   ui.toast.style.animation = '';
+}
+
+// ------------------------------------------------------------ companions
+const PIP_USES = 3;
+const LUNA_COOLDOWN = 10;
+const LUNA_STUN = 4;
+const LUNA_RANGE = 4;
+const POM_WARMTH = 18;
+const NPC = {
+  bruno: { create: createBruno, follow: { stepsBehind: 1 }, bubble: 0.95 },
+  luna: { create: createLuna, follow: { stepsBehind: 1, hover: 0.6 }, bubble: 0.75 },
+  pom: { create: createPom, follow: { stepsBehind: 1 }, bubble: 1.05 },
+};
+const manhattan = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
+const companion = (id) => companions.find((c) => c.id === id);
+const joined = (id) => !!companion(id)?.follower;
+
+/** Pip perches on Mochi in every level; NPC companions wait at their cell with a talk bubble. */
+function spawnCompanions() {
+  trail = new Trail(def.start, 6);
+  const pipModel = createPip();
+  addOutline(pipModel.root, 0.05);
+  levelGroup.add(pipModel.root);
+  pip = new PipController({ model: pipModel });
+  pip.reset(cat.root.position);
+  companions = (def.companions ?? []).filter(({ id }) => NPC[id]).map(({ id, at }) => {
+    const npc = NPC[id];
+    const model = npc.create();
+    addOutline(model.root, 0.06);
+    const hover = npc.follow.hover ?? 0;
+    model.root.position.copy(cellCenter(at)).add(new THREE.Vector3(0, hover, 0));
+    const bubble = createTalkBubble();
+    bubble.root.position.y = npc.bubble;
+    model.root.add(bubble.root);
+    levelGroup.add(model.root);
+    return { id, at: [...at], model, bubble, follower: null, requested: false };
+  });
+}
+
+function updateCompanions(dt) {
+  if (!pip) return;
+  pip.update(dt, cat.root.position);
+  for (const c of companions) {
+    if (c.follower) {
+      c.follower.update(dt, trail);
+      continue;
+    }
+    // waiting: idle, face Mochi, bob the talk bubble
+    const p = c.model.root.position;
+    const yaw = Math.atan2(cat.root.position.x - p.x, cat.root.position.z - p.z);
+    let diff = yaw - c.model.root.rotation.y;
+    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+    c.model.root.rotation.y += diff * (1 - Math.exp(-3 * dt));
+    c.model.setState('idle');
+    c.model.animate(dt);
+    c.bubble.animate(dt);
+  }
+}
+
+/** Queues the join scene of any waiting companion next to Mochi (Manhattan distance <= 1). */
+function checkCompanions() {
+  for (const c of companions) {
+    if (c.follower || c.requested || manhattan(c.at, actor.cell) > 1) continue;
+    c.requested = true;
+    actor.path = [];
+    actor.pending = null;
+    requestScene(`w${def.id}_${c.id}_join`, () => joinCompanion(c));
+  }
+}
+
+function joinCompanion(c) {
+  c.bubble.setVisible(false);
+  // Start the trail at the companion so it walks straight in behind Mochi.
+  trail.reset(c.at);
+  trail.record(actor.cell);
+  c.follower = new Follower({ model: c.model, cell: c.at, cellCenter, ...NPC[c.id].follow });
+  effects.burst({ pos: c.model.root.position.clone().add(new THREE.Vector3(0, 0.6, 0)), count: 14, colors: [CHARACTERS[c.id].color, '#ffffff'], speed: 1.5, up: 2 });
+  audio.sparkle();
+  toast(t('toast.joined', { name: CHARACTERS[c.id].name }));
+  renderHud();
+}
+
+/** After a fall respawn: Pip snaps back and followers stand right next to Mochi. */
+function regroupCompanions() {
+  pip?.reset(cat.root.position);
+  const followers = companions.filter((c) => c.follower);
+  if (!followers.length) {
+    trail.reset(actor.cell);
+    return;
+  }
+  const wind = weather?.wind?.dir;
+  const dirs = wind ? [[-wind[0], -wind[1]], ...DIRS] : DIRS; // upwind first: Bruno shelters her
+  const spots = dirs.map((d) => [actor.cell[0] + d[0], actor.cell[1] + d[1]]).filter((c) => isWalkable(level, state, c));
+  const spot = spots.find((c) => heightOf(c) === heightOf(actor.cell)) ?? spots[0] ?? actor.cell;
+  trail.reset(spot);
+  trail.record(actor.cell);
+  followers.forEach((c) => c.follower.teleport(spot));
+}
+
+/** Cells Pip points at: the nearest reachable gem, else keys, fireflies, the switch, the milk. */
+function pipTarget() {
+  const from = actor.target ?? actor.cell;
+  const left = (kind) => world.items.filter((i) => i.kind === kind && !i.collected).map((i) => i.cell);
+  const groups = [left('gem'), left('key'), left('firefly')];
+  if (def.switch && !state.raised.has('switch')) groups.push([def.switch]);
+  groups.push([def.milk]);
+  for (const cells of groups) {
+    const best = cells.length ? nearestReachable(level, state, from, cells) : null;
+    if (best) return best;
+  }
+  return groups.find((cells) => cells.length)[0]; // nothing reachable yet: point at what is next
+}
+
+function usePip() {
+  if (game.mode !== 'play' || !pip || pip.busy || game.pipUses <= 0) return;
+  game.pipUses--;
+  const run = game.run;
+  const target = pipTarget();
+  voice.chirp('pip', { volume: settings.sfx });
+  toast(t(`pip.hint.${1 + Math.floor(Math.random() * 5)}`));
+  pip.sendTo(cellCenter(target)).then(() => run === game.run && renderHud());
+  renderHud();
+}
+
+function lunaFlash() {
+  const luna = companion('luna');
+  if (game.mode !== 'play' || !luna?.follower || game.lunaCooldown > 0) return;
+  game.lunaCooldown = LUNA_COOLDOWN;
+  const origin = luna.model.root.position.clone();
+  let frozen = 0;
+  for (const e of enemies) {
+    if (e.kind !== 'wisp' || !e.alive) continue;
+    if (Math.hypot(e.root.position.x - origin.x, e.root.position.z - origin.z) > LUNA_RANGE) continue;
+    e.stun(LUNA_STUN);
+    frozen++;
+  }
+  effects.burst({ pos: origin, count: 46, colors: ['#e9dcff', '#b28dff', '#ffffff'], speed: 4.5, up: 1.5, gravity: -0.5, life: 0.9, size: 0.32 });
+  effects.ring(cat.root.position, '#c9a8ff');
+  ui.flashWhite();
+  audio.sparkle();
+  audio.tone({ freq: 520, to: 1560, type: 'sine', dur: 0.5, vol: 0.18 });
+  voice.chirp('luna', { volume: settings.sfx });
+  toast(t(frozen ? 'luna.flash' : 'luna.miss'));
+  renderHud();
+}
+
+let lunaShown = -1;
+function renderLunaButton() {
+  const left = Math.ceil(game.lunaCooldown);
+  if (left === lunaShown && left > 0) {
+    ui.lunaBtn.style.setProperty('--cd', game.lunaCooldown / LUNA_COOLDOWN);
+    return;
+  }
+  if (lunaShown > 0 && left === 0) {
+    ui.lunaBtn.classList.remove('ready');
+    void ui.lunaBtn.offsetWidth;
+    ui.lunaBtn.classList.add('ready');
+  }
+  lunaShown = left;
+  ui.lunaCooldown.textContent = left > 0 ? left : '';
+  ui.lunaBtn.style.setProperty('--cd', game.lunaCooldown / LUNA_COOLDOWN);
+  ui.lunaBtn.disabled = left > 0;
+}
+
+/** Pom's huddle: standing still next to him warms Mochi up. */
+function pomHug() {
+  const pom = companion('pom');
+  if (!pom?.follower) return false;
+  const idle = !actor.path.length && !actor.waypoints.length && !actor.target;
+  return idle && manhattan(pom.follower.cell, actor.cell) <= 1;
+}
+
+// ------------------------------------------------------------ story scenes
+/** Plays a scene in the current language; gameplay freezes in 'dialogue' mode meanwhile. */
+async function playScene(key) {
+  const lines = SCENES[getLang()]?.[key];
+  if (!lines?.length) return 'done';
+  const prev = game.mode;
+  const run = game.run;
+  game.mode = 'dialogue';
+  controls.enabled = false;
+  hoverMarker.visible = false;
+  keys.clear();
+  if (prev === 'play' && cat) cat.mode = 'idle';
+  const result = await dialogue.play(lines, { lang: getLang() });
+  if (run === game.run && game.mode === 'dialogue') {
+    game.mode = prev;
+    controls.enabled = prev === 'play';
+  }
+  return result;
+}
+
+/** Queues an event scene once per level attempt; it starts when Mochi reaches the next tile. */
+function requestScene(key, after) {
+  if (game.seenScenes.has(key) || !SCENES.en[key]) {
+    after?.();
+    return;
+  }
+  game.seenScenes.add(key);
+  game.pendingScenes.push({ key, after });
+}
+
+async function playPendingScene() {
+  const { key, after } = game.pendingScenes.shift();
+  const run = game.run;
+  await playScene(key);
+  if (run === game.run) after?.();
+}
+
+/** Proximity and weather triggers for event scenes, checked every frame of play. */
+function watchStoryTriggers() {
+  const near = (e, tiles) => e.alive && Math.hypot(e.root.position.x - cat.root.position.x, e.root.position.z - cat.root.position.z) <= tiles;
+  if (def.id === 1 && enemies.some((e) => near(e, 3))) requestScene('w1_enemy');
+  if (def.id === 3 && joined('luna') && enemies.some((e) => e.kind === 'wisp' && near(e, 3))) requestScene('w3_wisp_first');
+  if (weather?.wind?.phase === 'warning') {
+    if (weather.wind.blizzard) requestScene(`w${def.id}_blizzard_first`);
+    else if (!joined('bruno')) requestScene(`w${def.id}_gust_first`);
+  }
 }
 
 // ------------------------------------------------------------ movement
@@ -308,6 +560,7 @@ function arrive(cell) {
   const prev = actor.cell;
   actor.cell = cell;
   actor.target = null;
+  trail?.record(cell);
   onEnterCell(cell);
   if (game.mode !== 'play') return;
   const forced = slideNext(level, state, prev, cell, actor.slid);
@@ -325,6 +578,7 @@ function arrive(cell) {
     actor.path = p ? p.slice(1) : [];
     actor.pending = null;
   }
+  checkCompanions();
 }
 
 const keys = new Set();
@@ -366,8 +620,15 @@ function updateActor(dt) {
   if (actor.busy) return;
 
   if (!actor.waypoints.length && game.mode === 'play') {
+    // Story scenes start between tiles, never mid-step or mid-slide.
+    if (game.pendingScenes.length && !actor.sliding) {
+      cat.mode = 'idle';
+      playPendingScene();
+      return;
+    }
     if (weather?.gust && !actor.sliding && game.invuln <= 0 && actor.pushCooldown <= 0) {
-      const push = windPush(level, state, actor.cell, weather.wind.dir);
+      const shelters = joined('bruno') ? [companion('bruno').follower.cell] : [];
+      const push = windPush(level, state, actor.cell, weather.wind.dir, shelters);
       if (push) {
         actor.pushCooldown = 0.6;
         pushCat(push);
@@ -458,6 +719,7 @@ async function fallOff(dir) {
   if (run !== game.run) return;
   cat.root.rotation.z = 0;
   cat.root.position.copy(cellCenter(actor.cell));
+  regroupCompanions();
   effects.burst({ pos: cat.root.position.clone().add(new THREE.Vector3(0, 0.5, 0)), count: 12, colors: ['#ffffff', '#ffe066'], speed: 1.5, up: 2 });
   actor.busy = false;
   damage('fall');
@@ -501,22 +763,23 @@ function collect(item) {
       effects.burst({ pos: p, count: 26, colors: [item.color, '#ffffff'], speed: 2.5, up: 3, life: 0.9, size: 0.25 });
       effects.ring(item.root.position, item.color);
       game.shake = 0.08;
-      toast(`Gem found! (${game.gems}/${def.gems.length})`);
+      toast(t('toast.gem', { n: game.gems, total: def.gems.length }));
       vibrate(30);
       break;
     case 'key':
       game.keys++;
       audio.key();
       effects.burst({ pos: p, count: 18, colors: ['#ffe066', '#ffffff'], speed: 2, up: 2.5 });
-      toast('Got the key! A gate creaks open...');
+      toast(t('toast.key'));
       openGates();
+      requestScene(`w${def.id}_key`);
       break;
     case 'fish':
       audio.heal();
       if (game.hearts < 3) game.hearts++;
       else game.coins += 5;
       effects.burst({ pos: p, count: 14, colors: ['#ff7aa0', '#ffd1e8'], speed: 1.4, up: 2.2, size: 0.3 });
-      toast(game.hearts === 3 ? 'Yummy fish! Hearts full' : 'Yummy fish! +1 heart');
+      toast(t(game.hearts === 3 ? 'toast.fishFull' : 'toast.fishHeart'));
       break;
     case 'firefly': {
       game.fireflies++;
@@ -524,16 +787,17 @@ function collect(item) {
       effects.burst({ pos: p, count: 16, colors: ['#d8ff5a', '#fffbb0'], speed: 1.8, up: 2, size: 0.22 });
       const total = def.fireflies.length;
       if (game.fireflies >= total) {
-        toast('All fireflies! They light up a bridge!');
+        toast(t('toast.firefliesAll'));
         raiseTrigger('fireflies');
-      } else toast(`Firefly caught! (${game.fireflies}/${total})`);
+        requestScene(`w${def.id}_fireflies`);
+      } else toast(t('toast.firefly', { n: game.fireflies, total }));
       break;
     }
     case 'cocoa':
       game.warmth = 100;
       audio.cocoa();
       effects.burst({ pos: p, count: 10, colors: ['#ffffff', '#ffe0c0'], speed: 0.5, up: 2.5, gravity: 0.5, life: 1.1, size: 0.3, additive: false });
-      toast('Hot cocoa! Toasty warm');
+      toast(t('toast.cocoa'));
       break;
   }
   flyAway(item, item.kind === 'coin' ? 0.8 : 1.3);
@@ -552,7 +816,7 @@ function pluck(sprout) {
   tweens.add(0.35, (k) => yarn.scale.setScalar(Math.max(0.01, k)), ease.outBack);
   game.held = yarn;
   cat.armsUp = true;
-  toast('Picked up a yarn ball!');
+  toast(t('toast.yarn'));
   renderHud();
 }
 
@@ -563,8 +827,9 @@ function pressSwitch() {
   btn.capMat.color.set('#5fd36a');
   btn.capMat.emissive.set('#5fd36a');
   effects.ring(btn.root.position, '#5fd36a');
-  toast('Click! Something moved...');
+  toast(t('toast.switch'));
   raiseTrigger('switch');
+  requestScene(`w${def.id}_switch`);
 }
 
 function raiseTrigger(trigger) {
@@ -673,7 +938,7 @@ function updateProjectiles(dt) {
         if (result === 'defeat') defeatEnemy(e);
         else {
           audio.stun();
-          toast('Stunned! Hurry past!');
+          toast(t('toast.stunned'));
         }
       }
     }
@@ -706,7 +971,7 @@ async function defeatEnemy(e) {
   e.root.visible = false;
   game.coins += 3;
   audio.coin();
-  toast('Enemy defeated! +3 coins');
+  toast(t('toast.defeated'));
   renderHud();
   bump(ui.coins);
 }
@@ -714,11 +979,25 @@ async function defeatEnemy(e) {
 function updateCold(dt) {
   if (!def.weather?.cold || game.mode !== 'play') return;
   const near = world.campfires.some((f) => Math.max(Math.abs(f.cell[0] - actor.cell[0]), Math.abs(f.cell[1] - actor.cell[1])) <= 1);
+  const hug = !near && pomHug();
   if (near) game.warmth = Math.min(100, game.warmth + 40 * dt);
+  else if (hug) game.warmth = Math.min(100, game.warmth + POM_WARMTH * dt);
   else game.warmth -= def.weather.cold.drain * (weather?.blizzard ? 2.2 : 1) * dt;
+  if (hug) {
+    if (!game.hugToast) {
+      game.hugToast = true;
+      toast(t('pom.hug'));
+    }
+    game.hugTick -= dt;
+    if (game.hugTick <= 0) {
+      game.hugTick = 0.9;
+      const mid = cat.root.position.clone().lerp(companion('pom').model.root.position, 0.5).add(new THREE.Vector3(0, 0.9, 0));
+      effects.burst({ pos: mid, count: 2, colors: ['#ff6f91', '#ffb3c6'], speed: 0.4, up: 1.4, gravity: -0.2, life: 1.1, size: 0.3, additive: false });
+    }
+  }
   if (game.warmth <= 0) {
     game.warmth = 60;
-    toast('Brrr! Too cold! Find a campfire');
+    toast(t('toast.cold'));
     damage('cold');
   }
   ui.warmthFill.style.width = `${Math.max(0, game.warmth)}%`;
@@ -789,12 +1068,14 @@ function openSettings(from) {
   $('set-quality').value = settings.quality;
   $('set-vibration').checked = settings.vibration;
   $('set-vibration').disabled = !('vibrate' in navigator);
+  $('set-lang').value = settings.lang;
+  $('set-voice').value = settings.voice;
   renderQualityNote();
   $('screen-settings').classList.remove('hidden');
 }
 
 function renderQualityNote() {
-  $('quality-note').textContent = settings.quality === 'auto' ? `Auto picked: ${postfx.level}` : '';
+  $('quality-note').textContent = settings.quality === 'auto' ? t('settings.autoPicked', { level: t(`quality.${postfx.level}`) }) : '';
 }
 
 function closeSettings() {
@@ -822,6 +1103,44 @@ $('set-vibration').addEventListener('change', (e) => {
   settings.vibration = e.target.checked;
   vibrate(60);
 });
+$('set-lang').addEventListener('change', (e) => chooseLang(e.target.value));
+$('set-voice').addEventListener('change', (e) => {
+  settings.voice = e.target.value;
+  saveSettings();
+  if (settings.voice === 'off') voice.cancel();
+  else if (settings.voice === 'chirps') voice.chirp('mochi', { volume: settings.sfx });
+});
+document.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => chooseLang(b.dataset.lang)));
+
+/** Switches language, persists it and re-renders every visible text right away. */
+function chooseLang(lang) {
+  audio.uiClick();
+  settings.lang = setLang(lang);
+  saveSettings();
+}
+
+function renderLangToggle() {
+  document.querySelectorAll('.lang-toggle [data-lang]').forEach((b) => {
+    b.classList.toggle('on', b.dataset.lang === getLang());
+    b.setAttribute('aria-pressed', String(b.dataset.lang === getLang()));
+  });
+}
+
+onLangChange(() => {
+  applyDom();
+  renderLangToggle();
+  $('set-lang').value = getLang();
+  renderQualityNote();
+  if (!def) return;
+  ui.levelLabel.textContent = levelText(def, 'episode') + ' · ' + levelText(def, 'title');
+  fillTitleCard();
+  weather?.renderUi();
+  renderHud();
+  if (game.mode === 'title') renderLevelSelect();
+  if (game.loseSource) $('lose-text').textContent = t(`lose.${game.loseSource}`);
+  $('win-text').textContent = t(levelIndex === LEVELS.length - 1 ? 'win.final' : 'win.text');
+});
+renderLangToggle();
 
 async function startLevel(index) {
   audio.init();
@@ -835,9 +1154,7 @@ async function startLevel(index) {
   audio.startMusic(def.theme);
   audio.whoosh();
   const card = $('title-card');
-  card.querySelector('.episode').textContent = def.episode;
-  card.querySelector('.name').textContent = def.title;
-  card.querySelector('.mission').textContent = def.mission;
+  fillTitleCard();
   card.classList.remove('hidden');
   card.style.animation = 'none';
   void card.offsetWidth;
@@ -849,11 +1166,23 @@ async function startLevel(index) {
   effects.burst({ pos: cat.root.position.clone().add(new THREE.Vector3(0, 0.8, 0)), count: 10, colors: ['#ff9fb4', '#ffffff'], speed: 1, up: 2 });
   await tweens.wait(0.6);
   if (run !== game.run) return;
-  setTimeout(() => card.classList.add('hidden'), 1500);
+  if (SCENES.en[`w${def.id}_intro`]) {
+    card.classList.add('hidden');
+    await playScene(`w${def.id}_intro`);
+    if (run !== game.run) return;
+  } else setTimeout(() => card.classList.add('hidden'), 1500);
   ui.hud.classList.remove('hidden');
   renderHud();
   controls.enabled = true;
   game.mode = 'play';
+  checkCompanions(); // a friend may already be waiting right next to the start
+}
+
+function fillTitleCard() {
+  const card = $('title-card');
+  card.querySelector('.episode').textContent = levelText(def, 'episode');
+  card.querySelector('.name').textContent = levelText(def, 'title');
+  card.querySelector('.mission').textContent = levelText(def, 'mission');
 }
 
 async function victory() {
@@ -957,6 +1286,8 @@ async function victory() {
   confetti();
   await tweens.wait(1.2);
   if (!alive()) return;
+  await playScene(`w${def.id}_outro`);
+  if (!alive()) return;
 
   const best = progress.best[def.id] ?? { gems: 0 };
   progress.best[def.id] = { gems: Math.max(best.gems, game.gems) };
@@ -969,9 +1300,7 @@ async function victory() {
   $('res-time').textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
   const last = levelIndex === LEVELS.length - 1;
   $('btn-next').classList.toggle('hidden', last);
-  $('win-text').textContent = last
-    ? 'Mochi conquered every world and earned the coziest glass of milk. You did it!'
-    : 'Mochi drank the whole glass of milk. Purrfect!';
+  $('win-text').textContent = t(last ? 'win.final' : 'win.text');
   $('screen-win').classList.remove('hidden');
 }
 
@@ -988,11 +1317,7 @@ function confetti() {
   });
 }
 
-const LOSE_TEXT = {
-  fall: 'Mochi was blown off the cliff! Try again?',
-  cold: 'Mochi got too cold and curled up for a nap. Try again?',
-  enemy: 'Mochi got too dusty and needs a nap. Try again?',
-};
+const LOSE_SOURCES = new Set(['fall', 'cold', 'enemy']);
 
 function gameOver(source) {
   game.mode = 'gameover';
@@ -1000,7 +1325,8 @@ function gameOver(source) {
   audio.meow({ sad: true, dur: 0.9, pitch: 0.9 });
   controls.enabled = false;
   cat.mode = 'hurt';
-  $('lose-text').textContent = LOSE_TEXT[source] ?? LOSE_TEXT.enemy;
+  game.loseSource = LOSE_SOURCES.has(source) ? source : 'enemy';
+  $('lose-text').textContent = t(`lose.${game.loseSource}`);
   setTimeout(() => $('screen-lose').classList.remove('hidden'), 900);
 }
 
@@ -1010,15 +1336,18 @@ function showLevelSelect() {
   ui.hud.classList.add('hidden');
   loadLevel(Math.min(progress.unlocked, LEVELS.length) - 1);
   game.mode = 'title';
-  const list = $('level-select');
-  list.innerHTML = LEVELS.map((l, i) => {
+  renderLevelSelect();
+  $('screen-start').classList.remove('hidden');
+}
+
+function renderLevelSelect() {
+  $('level-select').innerHTML = LEVELS.map((l, i) => {
     const locked = l.id > progress.unlocked;
     const best = progress.best[l.id];
-    const stats = locked ? 'Locked' : best ? `Gems ${best.gems}/${l.gems.length}` : 'New!';
+    const stats = locked ? t('levels.locked') : best ? t('levels.gems', { n: best.gems, total: l.gems.length }) : t('levels.new');
     return `<button class="level-card theme-${l.theme}" data-level="${i}" ${locked ? 'disabled' : ''}>
-      <div class="num">${l.episode}</div><div class="title">${l.title}</div><div class="stats">${stats}</div></button>`;
+      <div class="num">${levelText(l, 'episode')}</div><div class="title">${levelText(l, 'title')}</div><div class="stats">${stats}</div></button>`;
   }).join('');
-  $('screen-start').classList.remove('hidden');
 }
 
 // ------------------------------------------------------------ input
@@ -1073,6 +1402,7 @@ renderer.domElement.addEventListener('pointermove', (e) => {
 
 window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyM') toggleMute();
+  if (dialogue.active || game.mode === 'dialogue') return; // the dialogue box owns the keyboard
   if (e.code === 'Escape' || e.code === 'KeyP') {
     if (game.mode === 'paused') resumeGame();
     else pauseGame();
@@ -1109,6 +1439,8 @@ document.querySelectorAll('[data-action="replay"]').forEach((b) => b.addEventLis
 document.querySelectorAll('[data-action="levels"]').forEach((b) => b.addEventListener('click', showLevelSelect));
 $('pause').addEventListener('click', pauseGame);
 $('btn-throw').addEventListener('click', () => throwYarn());
+ui.pipBtn.addEventListener('click', usePip);
+ui.lunaBtn.addEventListener('click', lunaFlash);
 document.querySelectorAll('[data-action="resume"]').forEach((b) => b.addEventListener('click', resumeGame));
 document.querySelectorAll('[data-action="settings"]').forEach((b) =>
   b.addEventListener('click', () => openSettings(b.closest('.screen').id)),
@@ -1148,6 +1480,14 @@ function frame(timestamp) {
   }
 
   tweens.update(dt);
+  const talking = game.mode === 'dialogue';
+  if (game.mode === 'play') {
+    watchStoryTriggers();
+    if (game.lunaCooldown > 0) {
+      game.lunaCooldown = Math.max(0, game.lunaCooldown - dt);
+      renderLunaButton();
+    }
+  }
   if (game.mode === 'play' || game.mode === 'gameover') updateActor(dt);
   else if (game.mode === 'victory') turnCat(dt);
   else if (game.mode === 'title') {
@@ -1157,15 +1497,17 @@ function frame(timestamp) {
     camera.lookAt(defaultTarget);
   }
   animateCat(cat, dt);
+  updateCompanions(dt);
   for (const e of enemies) {
+    if (talking) continue; // gameplay is frozen while the characters talk
     e.update(dt);
     if (game.mode === 'play' && game.invuln <= 0 && !actor.busy && e.hits(cat.root.position)) {
       damage('enemy', e.root.position.clone());
     }
   }
-  updateProjectiles(dt);
+  if (!talking) updateProjectiles(dt);
   updateCold(dt);
-  weather?.update(dt, camera);
+  weather?.update(dt, camera, { holdWind: talking });
   effects.update(dt);
 
   // idle animations of the world
@@ -1243,6 +1585,11 @@ if (import.meta.env.DEV) {
     get weather() { return weather; },
     get camera() { return camera; },
     get postfx() { return postfx; },
+    get pip() { return pip; },
+    get companions() { return companions; },
+    get trail() { return trail; },
+    get world() { return world; },
     tweens, goTo, throwYarn, startLevel, progress, pauseGame, resumeGame, settings,
+    dialogue, voice, setLang: chooseLang, getLang, usePip, lunaFlash, SCENES,
   };
 }

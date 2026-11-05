@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { glowTexture } from '../effects.js';
+import { t } from '../i18n/index.js';
 
 /**
  * Atmospheric conditions of a level. Purely visual parts (rain, snow, leaves,
@@ -91,9 +92,10 @@ export class Weather {
   }
 
   // ------------------------------------------------------------ update
-  update(dt, camera) {
+  /** `holdWind` freezes the gust cycle (story dialogue) while rain and snow keep falling. */
+  update(dt, camera, { holdWind = false } = {}) {
     this.time += dt;
-    this.updateWind(dt);
+    if (!holdWind) this.updateWind(dt);
     const windSpeed = !this.wind ? 0 : this.wind.phase === 'gust' ? (this.wind.blizzard ? 9 : 7) : this.wind.phase === 'warning' ? 2.5 : 0.4;
     const wx = this.wind ? this.wind.dirV.x * windSpeed : 0;
     const wz = this.wind ? this.wind.dirV.z * windSpeed : 0;
@@ -182,7 +184,9 @@ export class Weather {
     const el = this.ui.weather;
     el.dataset.phase = this.wind.phase;
     el.querySelector('.label').textContent =
-      this.wind.phase === 'gust' ? (this.wind.blizzard ? 'BLIZZARD!' : 'GUST!') : this.wind.phase === 'warning' ? 'Wind rising...' : 'Calm';
+      this.wind.phase === 'gust'
+        ? t(this.wind.blizzard ? 'weather.blizzard' : 'weather.gust')
+        : t(this.wind.phase === 'warning' ? 'weather.rising' : 'weather.calm');
   }
 
   renderArrow(camera) {
