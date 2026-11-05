@@ -1,0 +1,325 @@
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+  color: #3b2a1f;
+  user-select: none;
+  background: linear-gradient(180deg, #8fd3ff 0%, #c9ecff 55%, #ffe9c7 100%);
+}
+#app,
+#app canvas {
+  position: fixed;
+  inset: 0;
+  display: block;
+}
+.hidden {
+  display: none !important;
+}
+kbd {
+  background: #fff;
+  border-radius: 4px;
+  padding: 0 5px;
+  border: 1px solid #c9b7a0;
+  font-size: 0.85em;
+}
+
+/* HUD */
+.hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+.hud-left {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hud-left > div {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 999px;
+  padding: 6px 14px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  font-weight: bold;
+  font-size: 20px;
+}
+.hearts span {
+  color: #ff4d6d;
+  font-size: 24px;
+  transition: transform 0.2s, opacity 0.2s;
+}
+.hearts span.lost {
+  color: #d9cfc4;
+  transform: scale(0.8);
+}
+.gems span {
+  width: 18px;
+  height: 18px;
+  transform: rotate(45deg);
+  border-radius: 3px;
+  border: 2px solid #b8a99a;
+  margin: 0 4px;
+  display: inline-block;
+  transition: all 0.3s;
+}
+.gems span.got {
+  border-color: #fff;
+  box-shadow: 0 0 12px var(--c);
+  background: var(--c);
+  transform: rotate(45deg) scale(1.15);
+}
+.coin-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff3a8, #ffcf3a 60%, #c99200);
+  display: inline-block;
+}
+.bump {
+  animation: bump 0.35s;
+}
+@keyframes bump {
+  50% {
+    transform: scale(1.35);
+  }
+}
+.hud-right {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+}
+.icon-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15);
+  font-size: 22px;
+  cursor: pointer;
+  color: #3b2a1f;
+}
+.icon-btn:hover {
+  transform: translateY(-1px);
+}
+.icon-btn.off {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.help {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.7);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.held-hint {
+  position: absolute;
+  bottom: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ff6fa3;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-weight: bold;
+  animation: pulse 1.2s infinite;
+}
+@keyframes pulse {
+  50% {
+    transform: translateX(-50%) scale(1.05);
+  }
+}
+
+/* Title card + toasts */
+.title-card {
+  position: fixed;
+  top: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+  animation: card 3.2s forwards;
+}
+.title-card .episode {
+  font-size: 22px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 2px 0 #c46b1e;
+}
+.title-card .name {
+  font-size: 58px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 4px 0 #e0782b, 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+.title-card .mission {
+  margin-top: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-weight: bold;
+}
+@keyframes card {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px) scale(0.9);
+  }
+  12%,
+  80% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+}
+.toast {
+  position: fixed;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-weight: bold;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+  animation: toast 2.2s forwards;
+}
+@keyframes toast {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-12px);
+  }
+  10%,
+  85% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.flash {
+  position: fixed;
+  inset: 0;
+  background: #ff4d6d;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s;
+}
+.flash.on {
+  opacity: 0.35;
+  transition: none;
+}
+
+/* Screens */
+.screen {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 236, 210, 0.45);
+  backdrop-filter: blur(3px);
+}
+.panel {
+  background: #fffaf2;
+  border-radius: 28px;
+  padding: 32px 40px;
+  max-width: 480px;
+  text-align: center;
+  box-shadow: 0 10px 0 #f0c48a, 0 20px 50px rgba(0, 0, 0, 0.2);
+  animation: pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes pop {
+  from {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+}
+.logo {
+  font-size: 46px;
+  font-weight: 900;
+  color: #f08a24;
+  text-shadow: 0 3px 0 #b85d10;
+  line-height: 1;
+}
+.logo span {
+  display: block;
+  color: #4aa3ff;
+  text-shadow: 0 3px 0 #1d6fc4;
+}
+.logo.small {
+  font-size: 40px;
+}
+.big-btn {
+  margin-top: 10px;
+  font: inherit;
+  font-size: 24px;
+  font-weight: 900;
+  padding: 12px 44px;
+  border: none;
+  border-radius: 999px;
+  color: #fff;
+  background: #ff8a3d;
+  box-shadow: 0 6px 0 #c45c15;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.big-btn:hover {
+  transform: translateY(-2px);
+}
+.big-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #c45c15;
+}
+.controls {
+  text-align: left;
+  font-size: 14px;
+  margin: 20px 0 0;
+  padding-left: 20px;
+  line-height: 1.7;
+}
+.results {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin: 16px 0;
+}
+.results div {
+  background: #fff;
+  border-radius: 16px;
+  padding: 10px 16px;
+  box-shadow: 0 3px 0 #ecd9bf;
+  display: flex;
+  flex-direction: column;
+}
+.results span {
+  font-size: 13px;
+  color: #8a7462;
+}
+.results b {
+  font-size: 26px;
+}

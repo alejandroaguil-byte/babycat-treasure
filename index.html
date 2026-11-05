@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Babycat Treasure</title>
+    <link rel="icon" href="/assets/icon.svg" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <div id="hud" class="hud hidden">
+      <div class="hud-left">
+        <div id="hearts" class="hearts"></div>
+        <div id="gems" class="gems"></div>
+        <div class="coins"><span class="coin-icon"></span><span id="coin-count">0</span></div>
+      </div>
+      <div class="hud-right">
+        <button id="rot-left" class="icon-btn" title="Rotate camera left (Q)">&#10226;</button>
+        <button id="rot-right" class="icon-btn" title="Rotate camera right (E)">&#10227;</button>
+        <button id="mute" class="icon-btn" title="Toggle sound (M)">&#9835;</button>
+      </div>
+      <div id="held-hint" class="held-hint hidden">
+        Holding a yarn ball! Press <kbd>Space</kbd> or click the dust bunny to throw it.
+      </div>
+      <div class="help">
+        Click a tile to walk &middot; Drag to rotate &middot; Scroll to zoom &middot; <kbd>WASD</kbd> step &middot; <kbd>Q</kbd>/<kbd>E</kbd> turn camera
+      </div>
+    </div>
+
+    <div id="title-card" class="title-card hidden">
+      <div class="episode"></div>
+      <div class="name"></div>
+      <div class="mission">Collect the gems and reach the glass of milk!</div>
+    </div>
+    <div id="toast" class="toast hidden"></div>
+    <div id="flash" class="flash"></div>
+
+    <div id="screen-start" class="screen">
+      <div class="panel">
+        <div class="logo">Babycat <span>Treasure</span></div>
+        <p>
+          Mochi the kitten is thirsty! Explore the tiny diorama, find the 3 hidden gems and climb the
+          tower to reach the well-earned glass of milk.
+        </p>
+        <button id="btn-play" class="big-btn">Play</button>
+        <ul class="controls">
+          <li><b>Click</b> a tile to walk there</li>
+          <li><b>Drag</b> to rotate the world &mdash; some secrets hide behind things</li>
+          <li><b>Kittens can't jump</b>: use ladders, switches and bridges</li>
+          <li>Pick up <b>yarn balls</b> and throw them at the dust bunny</li>
+        </ul>
+      </div>
+    </div>
+
+    <div id="screen-win" class="screen hidden">
+      <div class="panel">
+        <div class="logo small">Mission complete!</div>
+        <p>Mochi drank the whole glass of milk. Purrfect!</p>
+        <div class="results">
+          <div><span>Gems</span><b id="res-gems">0/3</b></div>
+          <div><span>Coins</span><b id="res-coins">0</b></div>
+          <div><span>Time</span><b id="res-time">0:00</b></div>
+        </div>
+        <button class="big-btn" data-action="restart">Play again</button>
+      </div>
+    </div>
+
+    <div id="screen-lose" class="screen hidden">
+      <div class="panel">
+        <div class="logo small">Oh no!</div>
+        <p>Mochi got too dusty and needs a nap. Try again?</p>
+        <button class="big-btn" data-action="restart">Try again</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
