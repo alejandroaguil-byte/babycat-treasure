@@ -12,7 +12,7 @@ well-earned glass of milk.
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # grid / pathfinding tests
+npm test         # grid logic + solvability/no-soft-lock checks for every level
 npm run build    # production build in dist/
 ```
 
@@ -27,19 +27,25 @@ npm run build    # production build in dist/
 | Throw a yarn ball | `Space`, or click the dust bunny |
 | Mute | `M` |
 
-## Level 1 — The Milk Tower
+## Worlds
 
-- Press the red switch hidden at the back of the upper garden to raise a bridge.
-- One gem hides behind the hedges: rotate the camera to spot it.
-- A dust bunny patrols the lower garden. Pluck a yarn ball from a sprout and throw it.
-- Climb the tower and drink the milk to complete the mission.
+Each world adds new weather, characters and items on top of the previous ones. Progress
+(unlocked worlds and best gem count) is saved in `localStorage`.
+
+| # | World | Weather and terrain | Characters | Items |
+| --- | --- | --- | --- | --- |
+| 1 | The Milk Tower (meadow) | Sunny | Dust bunny | Gems, coins, yarn sprouts, switch bridge |
+| 2 | Windy Autumn Cliffs | Wind gusts push Mochi one tile; exposed edges make her fall. Rocks upwind give shelter | Hedgehog (yarn only stuns it) | Key + gate, fish treat (+1 heart) |
+| 3 | Stormy Night Garden | Darkness (Mochi carries a lantern), lightning, wet tiles slide one extra tile | Will-o'-wisp that chases Mochi | 5 fireflies raise the bridge to the tower |
+| 4 | Snowy Peak | Ice slides until something stops Mochi, blizzards (strong wind + whiteout), cold meter | Snowmen rolling snowballs | Hot cocoa, campfires (warm up nearby) |
 
 ## Structure
 
 | Path | Purpose |
 | --- | --- |
-| `src/game/` | Pure level data and grid/pathfinding logic (tested in Node) |
-| `src/world/` | three.js models (kitten, enemy, props) and level construction |
+| `src/game/` | Pure level data (`levels/`) and grid logic: pathfinding, slides, gates, wind (tested in Node) |
+| `src/mechanics/` | Weather cycle and particles, enemy behaviours |
+| `src/world/` | three.js models, themes per world and level construction |
 | `src/audio.js` | Procedural Web Audio music and sound effects (no audio files) |
 | `src/effects.js` | Particles: sparkles, dust, confetti, rings |
 | `src/main.js` | Game loop, input, camera, gameplay and cutscenes |
