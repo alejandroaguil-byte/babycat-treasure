@@ -1,51 +1,157 @@
-<img src="assets/icon.svg" width="64" height="64" alt="">
+<div align="center">
+
+<img src="assets/icon.svg" width="88" height="88" alt="Babycat Treasure icon">
 
 # Babycat Treasure
 
-A cozy diorama puzzle game built with [three.js](https://threejs.org/). Guide **Mochi the kitten**
-through a tiny floating world: kittens can't jump, so use ladders, switches and bridges, rotate the
-camera to uncover secrets, collect the 3 gems and reach the reward at the end of every stage — a
-well-earned glass of milk.
+**A cozy 3D diorama puzzle adventure, built with three.js.**
 
-## Run
+Guide **Mochi the kitten** through four tiny floating worlds. Collect the hidden gems,
+outsmart the weather, and earn the best reward of all: a glass of milk.
+
+![three.js](https://img.shields.io/badge/three.js-r187-black?logo=threedotjs)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
+![No assets](https://img.shields.io/badge/audio-100%25%20procedural-ff8a3d)
+![Tests](https://img.shields.io/badge/tests-node%3Atest-3fa34d)
+
+<img src="docs/screenshots/world-1-meadow.png" alt="Mochi exploring the first world" width="820">
+
+</div>
+
+## Contents
+
+- [Highlights](#highlights)
+- [The worlds](#the-worlds)
+- [How to play](#how-to-play)
+- [Run it locally](#run-it-locally)
+- [How it works](#how-it-works)
+- [Project structure](#project-structure)
+
+## Highlights
+
+- **Rotate the world to find secrets.** Every level is a small handcrafted diorama. Some gems
+  only show up when you look from the right angle.
+- **Kittens can't jump.** You get around with ladders, switches, rising bridges, keys and gates.
+- **Weather that changes how you play.** Wind gusts push you off cliffs, storms turn off the
+  lights, and the ice won't let you stop.
+- **Everything is generated in code.** The models are built from three.js primitives, and the
+  music, ambience and sound effects are synthesized with the Web Audio API. The game ships no
+  image or audio files.
+- **Every level is checked by tests.** Automated checks prove each level can be finished and
+  has no spot where the kitten gets stuck.
+
+## The worlds
+
+Each world keeps the mechanics from the ones before it and adds new weather, characters and
+items, so the difficulty climbs steadily.
+
+| | World | Weather & terrain | New characters | New items |
+| :-: | --- | --- | --- | --- |
+| 1 | **The Milk Tower** | Sunny meadow | Dust bunny | Gems, coins, yarn sprouts, switch bridge |
+| 2 | **Windy Autumn Cliffs** | Wind gusts push Mochi a tile, or off the edge. Rocks upwind give shelter | Hedgehog (yarn only stuns it) | Key & gate, fish treat (+1 heart) |
+| 3 | **Stormy Night Garden** | Darkness (Mochi carries a lantern), lightning, rain, slippery wet tiles | Will-o'-wisp that chases you | 5 fireflies that light up the way |
+| 4 | **Snowy Peak** | Ice you slide across until something stops you, blizzards, a cold meter | Snowmen rolling snowballs | Hot cocoa, campfires |
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/world-2-autumn.png" alt="Windy Autumn Cliffs"></td>
+    <td><img src="docs/screenshots/world-3-storm.png" alt="Stormy Night Garden"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Windy Autumn Cliffs</b></td>
+    <td align="center"><b>Stormy Night Garden</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/world-4-snow.png" alt="Snowy Peak"></td>
+    <td><img src="docs/screenshots/milk.png" alt="Mochi drinking the milk"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Snowy Peak</b></td>
+    <td align="center"><b>The reward</b></td>
+  </tr>
+</table>
+
+## How to play
+
+| Action | Mouse / touch | Keyboard |
+| --- | --- | --- |
+| Walk to a tile | Click or tap it | |
+| Step one tile | | `WASD` / arrow keys (relative to the camera) |
+| Rotate the world | Drag | `Q` / `E` |
+| Zoom | Scroll / pinch | |
+| Throw a yarn ball | Click an enemy | `Space` |
+| Mute | ♫ button | `M` |
+
+**Tips**
+
+- Watch the wind indicator. When it says *Wind rising...*, get behind a rock.
+- On ice you keep sliding until something stops you, so plan your route before you step.
+- In the snow, stay close to campfires and grab hot cocoa before the cold meter runs out.
+- Your progress and best gem count are saved in the browser.
+
+## Run it locally
+
+You need [Node.js](https://nodejs.org/) 20.19+ or 22.12+.
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm test         # grid logic + solvability/no-soft-lock checks for every level
-npm run build    # production build in dist/
+npm run dev        # http://localhost:5173
 ```
 
-## Controls
-
-| Action | Input |
+| Script | What it does |
 | --- | --- |
-| Walk to a tile | Click it |
-| Step one tile | `WASD` / arrow keys (camera-relative) |
-| Rotate camera | Drag, or `Q` / `E` |
-| Zoom | Mouse wheel |
-| Throw a yarn ball | `Space`, or click the dust bunny |
-| Mute | `M` |
+| `npm run dev` | Development server with hot reload |
+| `npm run build` | Production build in `dist/` (relative paths, so it works on any static host) |
+| `npm run preview` | Serve the production build locally |
+| `npm test` | Grid logic tests, plus solvability and no-soft-lock checks for every level |
 
-## Worlds
+To play on your phone from your local network or tailnet, run
+`npx vite --host 0.0.0.0` and open the printed network URL.
 
-Each world adds new weather, characters and items on top of the previous ones. Progress
-(unlocked worlds and best gem count) is saved in `localStorage`.
+Every [release](../../releases) also includes a ready-to-serve zip of the build.
 
-| # | World | Weather and terrain | Characters | Items |
-| --- | --- | --- | --- | --- |
-| 1 | The Milk Tower (meadow) | Sunny | Dust bunny | Gems, coins, yarn sprouts, switch bridge |
-| 2 | Windy Autumn Cliffs | Wind gusts push Mochi one tile; exposed edges make her fall. Rocks upwind give shelter | Hedgehog (yarn only stuns it) | Key + gate, fish treat (+1 heart) |
-| 3 | Stormy Night Garden | Darkness (Mochi carries a lantern), lightning, wet tiles slide one extra tile | Will-o'-wisp that chases Mochi | 5 fireflies raise the bridge to the tower |
-| 4 | Snowy Peak | Ice slides until something stops Mochi, blizzards (strong wind + whiteout), cold meter | Snowmen rolling snowballs | Hot cocoa, campfires (warm up nearby) |
+## How it works
 
-## Structure
+**Levels are data.** Each world is a small JS module: a height map (`'2222..444'`), optional
+surface rows (`w` wet, `i` ice), and lists of ladders, bridges, items, enemies and weather.
+
+```js
+export default {
+  title: 'Snowy Peak',
+  theme: 'snow',
+  map: ['......4444.', /* ... */],
+  surface: ['...........', /* ... */ '.....iiiiii'],
+  ladders: [{ a: [3, 7], b: [3, 6] }],
+  bridges: [{ x: 5, z: 4, h: 2, trigger: 'switch' }],
+  weather: { snow: true, cold: { drain: 3.2 }, wind: { dir: [1, 0], blizzard: true } },
+};
+```
+
+**The rules are pure functions.** `src/game/grid.js` has no three.js in it. It decides where
+the kitten can step, how far she slides on wet or icy tiles, where a gust pushes her, and the
+shortest path to a clicked tile. Because it's pure, it runs in Node, and the tests use it to
+prove every level can be completed without getting stuck.
+
+**Rendering, weather and enemies sit on top.** The world builder turns level data into
+meshes. The weather system runs the wind cycle (calm → warning → gust) and the rain, snow,
+leaf and lightning effects. Each enemy type has its own behavior: patrolling, chasing with
+pathfinding, or rolling snowballs down a lane.
+
+## Project structure
 
 | Path | Purpose |
 | --- | --- |
-| `src/game/` | Pure level data (`levels/`) and grid logic: pathfinding, slides, gates, wind (tested in Node) |
-| `src/mechanics/` | Weather cycle and particles, enemy behaviours |
-| `src/world/` | three.js models, themes per world and level construction |
-| `src/audio.js` | Procedural Web Audio music and sound effects (no audio files) |
+| `src/game/levels/` | Level definitions, one module per world |
+| `src/game/grid.js` | Pure rules: walkability, ladders, bridges, gates, slides, wind, pathfinding |
+| `src/world/` | three.js models, per-world themes and level construction |
+| `src/mechanics/` | Weather cycle and particles, enemy behaviors |
+| `src/audio.js` | Procedural music (one song per world), ambience and sound effects |
 | `src/effects.js` | Particles: sparkles, dust, confetti, rings |
-| `src/main.js` | Game loop, input, camera, gameplay and cutscenes |
+| `src/main.js` | Game loop, input, camera, progression and cutscenes |
+| `test/` | `node:test` suite |
+
+<div align="center">
+
+Made with 🧡 for Mochi.
+
+</div>
