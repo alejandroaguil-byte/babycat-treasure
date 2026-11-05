@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/icon.svg" width="88" height="88" alt="Babycat Treasure icon">
+<img src="public/icons/icon.svg" width="96" height="96" alt="Babycat Treasure icon">
 
 # Babycat Treasure
 
@@ -37,6 +37,10 @@ outsmart the weather, and earn the best reward of all: a glass of milk.
 - **Everything is generated in code.** The models are built from three.js primitives, and the
   music, ambience and sound effects are synthesized with the Web Audio API. The game ships no
   image or audio files.
+- **Looks like a real miniature.** A tilt-shift blur, bloom on glowing things and cartoon
+  outlines make the dioramas feel like tiny physical models.
+- **Plays anywhere.** Touch controls, an installable app that works offline (PWA), and graphics
+  quality that adapts automatically when a phone struggles.
 - **Every level is checked by tests.** Automated checks prove each level can be finished and
   has no spot where the kitten gets stuck.
 
@@ -79,7 +83,9 @@ items, so the difficulty climbs steadily.
 | Step one tile | | `WASD` / arrow keys (relative to the camera) |
 | Rotate the world | Drag | `Q` / `E` |
 | Zoom | Scroll / pinch | |
-| Throw a yarn ball | Click an enemy | `Space` |
+| Throw a yarn ball | Click an enemy, or the **Throw!** button on touch | `Space` |
+| Pause / resume | ❚❚ button | `Esc` / `P` |
+| Restart the level | Pause menu | `R` |
 | Mute | ♫ button | `M` |
 
 **Tips**
@@ -87,7 +93,8 @@ items, so the difficulty climbs steadily.
 - Watch the wind indicator. When it says *Wind rising...*, get behind a rock.
 - On ice you keep sliding until something stops you, so plan your route before you step.
 - In the snow, stay close to campfires and grab hot cocoa before the cold meter runs out.
-- Your progress and best gem count are saved in the browser.
+- Your progress, best gem count and settings (volume, graphics, vibration) are saved in the browser.
+- On a phone, use your browser's *Install app* / *Add to Home screen* to play full screen, even offline.
 
 ## Run it locally
 
@@ -109,6 +116,10 @@ To play on your phone from your local network or tailnet, run
 `npx vite --host 0.0.0.0` and open the printed network URL.
 
 Every [release](../../releases) also includes a ready-to-serve zip of the build.
+
+**Continuous integration:** every push to `main` runs the tests and the production build on
+GitHub Actions. When the repository is public, the same workflow publishes the game to
+GitHub Pages.
 
 ## How it works
 
@@ -144,6 +155,9 @@ pathfinding, or rolling snowballs down a lane.
 | `src/game/levels/` | Level definitions, one module per world |
 | `src/game/grid.js` | Pure rules: walkability, ladders, bridges, gates, slides, wind, pathfinding |
 | `src/world/` | three.js models, per-world themes and level construction |
+| `src/render/` | Post-processing (tilt-shift, bloom, sky pass), outlines, adaptive quality |
+| `src/ui/` | Persisted player settings and haptics |
+| `public/` | PWA manifest, service worker and app icons |
 | `src/mechanics/` | Weather cycle and particles, enemy behaviors |
 | `src/audio.js` | Procedural music (one song per world), ambience and sound effects |
 | `src/effects.js` | Particles: sparkles, dust, confetti, rings |
