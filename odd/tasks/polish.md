@@ -20,7 +20,7 @@ Branch: `feat/polish` (from `main` at v1.0.0). Delivery: work-unit commits, push
 | T1 | S1, S2, S3 | inline | done | screenshots at each quality level; sky pass fixes the tone-mapping desaturation |
 | T2 | S4 | inline | done | headless: Esc pauses, settings persist, R restarts at start cell |
 | T3 | S5 | inline | done | preview build: SW controls the page, manifest ok, offline reload renders level select |
-| T4 | S6 | inline | blocked | workflow ready (deploy gated on public repo); API: "Your current plan does not support GitHub Pages for this repository." |
+| T4 | S6 | inline | done | repo public, Pages enabled (workflow); run 42030205407 build+deploy success; live site loads with SW |
 
 ## Log
 
@@ -33,3 +33,4 @@ Branch: `feat/polish` (from `main` at v1.0.0). Delivery: work-unit commits, push
 - L7: Evidence: 27/27 tests. In the preview build, the SW caches assets, a planted stale asset gets pruned, the offline reload renders the level select, and the pause screen keeps the last frame.
 - L8: Second native review (risk/resilience) was granted, APPROVED and acknowledged. Fixed its findings: pruning now removes only replaced hashed versions of the same file, only runs on our own page (no captive-portal wipe), and the canvas redraws after a quality change while paused. Verified in the preview build: old index pruned, lazy chunk kept, offline OK.
 - L9: Pushed main (adbca70..10ff6ff). GitHub Actions run 42028609864: build job success (npm ci, 27 tests, build); deploy job skipped because the repo is private. T4 stays blocked until the user decides on repo visibility.
+- L10 (2026-11-05): "dale, no hay problema, si no hay riesgo" / "primero ocultar el mail y luego publicar". Audit found no secrets and no private infra in the pushed history. The author email was the only exposure. History was rewritten to 294282151+alejandroaguil-byte@users.noreply.github.com (trees identical, backup bundle kept outside the repo). The tag was re-created with the noreply tagger. Force-pushed with lease, old CI runs deleted, repo made public, Pages enabled. Live at https://alejandroaguil-byte.github.io/babycat-treasure/

@@ -14,6 +14,10 @@ outsmart the weather, and earn the best reward of all: a glass of milk.
 ![No assets](https://img.shields.io/badge/audio-100%25%20procedural-ff8a3d)
 ![Tests](https://img.shields.io/badge/tests-node%3Atest-3fa34d)
 
+### [▶ Play it in your browser](https://alejandroaguil-byte.github.io/babycat-treasure/)
+
+Works on desktop and phones, and can be installed as an app for offline play.
+
 <img src="docs/screenshots/world-1-meadow.png" alt="Mochi exploring the first world" width="820">
 
 </div>
