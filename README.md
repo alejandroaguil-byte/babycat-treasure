@@ -60,7 +60,7 @@ with their own voice: real speech through the browser's text-to-speech, or a cut
 | :-: | --- | --- |
 | 🐱 | **Mochi** | The kitten hero. Can't jump, loves milk |
 | 🐦 | **Pip**, sparrow | Rides along in every world. Tap his button and he flies to the nearest gem (3 hints per level) |
-| 🐢 | **Bruno**, tortoise | World 2. Follows you and blocks the wind when you stand right behind his shell |
+| 🐢 | **Bruno**, tortoise | World 2. Follows you and blocks the wind when you stand right behind his shell. Mochi hops onto his shell to get past him, and gusts can't move her up there |
 | 🦋 | **Luna**, glow moth | World 3. Lights up the night; her flash freezes nearby wisps |
 | 🐧 | **Pom**, penguin | World 4. Stand still next to him for a warm penguin hug |
 | 🦉 | **Grandma Hazel** | Runs the Cozy Creamery and narrates the adventure |

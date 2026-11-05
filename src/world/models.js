@@ -189,6 +189,8 @@ export function animateCat(c, dt) {
     bodyRZ = Math.sin(t * 30) * 0.2;
   } else if (m === 'drink') {
     bodyRX = -0.12;
+  } else if (m === 'jump') {
+    bodyRX = -0.3;
   }
   c.body.position.y = damp(c.body.position.y, bodyY, 20, dt);
   c.body.rotation.x = damp(c.body.rotation.x, bodyRX, 10, dt);
@@ -202,6 +204,9 @@ export function animateCat(c, dt) {
   } else if (climbing) {
     const s = Math.sin(ph);
     targets[0] = -1.6 + s * 0.4; targets[1] = -1.6 - s * 0.4; targets[2] = s * 0.5; targets[3] = -s * 0.5;
+  } else if (m === 'jump') {
+    // stretched leap: front paws reach forward, hind legs kick back
+    targets[0] = -1.1; targets[1] = -1.1; targets[2] = 0.9; targets[3] = 0.9;
   } else if (m === 'cheer') {
     targets[0] = -2.6 + Math.sin(t * 14) * 0.3; targets[1] = -2.6 - Math.sin(t * 14) * 0.3;
   }

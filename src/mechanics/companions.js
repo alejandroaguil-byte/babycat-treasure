@@ -111,7 +111,8 @@ export class Follower {
 
   update(dt, trail) {
     const root = this.model.root;
-    if (!this.next) {
+    // While the leader stands on (or hops over) this companion, it holds still instead of swapping places.
+    if (!this.next && !sameCell(this.from, trail.latest)) {
       const step = this.chooseNext(trail);
       if (step && sameCell(step.cell, trail.latest)) {
         this.next = null; // never walk onto the leader; wait for her to move on

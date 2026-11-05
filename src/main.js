@@ -296,13 +296,26 @@ const LUNA_STUN = 4;
 const LUNA_RANGE = 4;
 const POM_WARMTH = 18;
 const NPC = {
-  bruno: { create: createBruno, follow: { stepsBehind: 1 }, bubble: 0.95 },
+  bruno: { create: createBruno, follow: { stepsBehind: 1 }, bubble: 0.95, ride: 0.36 },
   luna: { create: createLuna, follow: { stepsBehind: 1, hover: 0.6 }, bubble: 0.75 },
   pom: { create: createPom, follow: { stepsBehind: 1 }, bubble: 1.05 },
 };
 const manhattan = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
 const companion = (id) => companions.find((c) => c.id === id);
 const joined = (id) => !!companion(id)?.follower;
+
+/** Height of the shell Mochi stands on at `cell` (a joined companion she can hop onto), else 0. */
+function rideHeight(cell) {
+  const rider = companions.find((c) => c.follower && NPC[c.id].ride && sameCell(c.follower.next ?? c.follower.cell, cell));
+  return rider ? NPC[rider.id].ride : 0;
+}
+
+/** Where Mochi's feet rest on `cell`: the tile, or the top of a companion's shell. */
+function standPoint(cell) {
+  const p = cellCenter(cell);
+  p.y += rideHeight(cell);
+  return p;
+}
 
 /** Pip perches on Mochi in every level; NPC companions wait at their cell with a talk bubble. */
 function spawnCompanions() {
@@ -519,6 +532,14 @@ function beginStep(to) {
   const b = cellCenter(to);
   const dir = dirVector(from, to);
   actor.target = to;
+  const rideTo = rideHeight(to);
+  if (hf === ht && (rideTo || rideHeight(from))) {
+    // Hop onto (or off) a companion's shell instead of walking through it.
+    actor.waypoints = [{ p: b.setY(b.y + rideTo), face: dir, hop: { arc: 0.42, dur: 0.42 } }];
+    audio.meow({ pitch: 1.7, dur: 0.12, vol: 0.05 });
+    return;
+  }
+  b.y += rideTo;
   if (hf === ht) {
     actor.waypoints = [{ p: b, face: dir, speed: actor.sliding ? 4.5 : undefined }];
     return;
@@ -626,7 +647,8 @@ function updateActor(dt) {
       playPendingScene();
       return;
     }
-    if (weather?.gust && !actor.sliding && game.invuln <= 0 && actor.pushCooldown <= 0) {
+    // Standing on a companion's shell keeps Mochi safe from gusts.
+    if (weather?.gust && !actor.sliding && game.invuln <= 0 && actor.pushCooldown <= 0 && !rideHeight(actor.cell)) {
       const shelters = joined('bruno') ? [companion('bruno').follower.cell] : [];
       const push = windPush(level, state, actor.cell, weather.wind.dir, shelters);
       if (push) {
@@ -649,21 +671,38 @@ function updateActor(dt) {
   const pos = cat.root.position;
   if (actor.waypoints.length) {
     const wp = actor.waypoints[0];
-    const speed = wp.speed ?? (wp.climb ? 1.8 : 3);
-    const delta = wp.p.clone().sub(pos);
-    const dist = delta.length();
-    const move = speed * dt;
     if (wp.face && !wp.keepFacing) actor.yaw = Math.atan2(wp.face.x, wp.face.z);
-    cat.mode = actor.hurtTimer > 0 ? 'hurt' : wp.climb ? 'climb' : actor.sliding || wp.keepFacing ? 'idle' : 'walk';
-    if (dist <= move) {
-      pos.copy(wp.p);
+    let reached = false;
+    if (wp.hop) {
+      wp.start ??= pos.clone();
+      wp.k = Math.min(1, (wp.k ?? 0) + dt / wp.hop.dur);
+      pos.lerpVectors(wp.start, wp.p, wp.k);
+      pos.y += Math.sin(Math.PI * wp.k) * wp.hop.arc;
+      cat.mode = actor.hurtTimer > 0 ? 'hurt' : 'jump';
+      reached = wp.k >= 1;
+      if (reached) {
+        audio.step();
+        effects.dust(wp.p.clone().add(new THREE.Vector3(0, 0.05, 0)), 3);
+      }
+    } else {
+      const speed = wp.speed ?? (wp.climb ? 1.8 : 3);
+      const delta = wp.p.clone().sub(pos);
+      const dist = delta.length();
+      const move = speed * dt;
+      cat.mode = actor.hurtTimer > 0 ? 'hurt' : wp.climb ? 'climb' : actor.sliding || wp.keepFacing ? 'idle' : 'walk';
+      if (dist <= move) {
+        pos.copy(wp.p);
+        reached = true;
+      } else {
+        pos.addScaledVector(delta, move / dist);
+      }
+    }
+    if (reached) {
       actor.waypoints.shift();
       if (!actor.waypoints.length) {
         arrive(actor.target);
         if (game.mode !== 'play') return;
       }
-    } else {
-      pos.addScaledVector(delta, move / dist);
     }
     actor.stepTimer -= dt;
     if (actor.stepTimer <= 0) {
@@ -697,7 +736,7 @@ function pushCat(push) {
   effects.burst({ pos: cat.root.position.clone().add(new THREE.Vector3(0, 0.4, 0)), count: 6, colors: ['#ffffff'], speed: 1, up: 0.5, additive: false, size: 0.2, life: 0.4 });
   if (push.to) {
     actor.target = push.to;
-    actor.waypoints = [{ p: cellCenter(push.to), speed: 4, keepFacing: true }];
+    actor.waypoints = [{ p: standPoint(push.to), speed: 4, keepFacing: true }];
     audio.meow({ pitch: 1.4, dur: 0.25, vol: 0.1 });
     return;
   }
@@ -903,7 +942,7 @@ function knockBack(from) {
   actor.pending = null;
   actor.cell = best;
   actor.target = best;
-  actor.waypoints = [{ p: cellCenter(best), speed: 5, keepFacing: true }];
+  actor.waypoints = [{ p: standPoint(best), speed: 5, keepFacing: true }];
 }
 
 function throwYarn(dirOverride) {

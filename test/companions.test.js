@@ -74,6 +74,27 @@ test('Follower walks cell by cell along the trail and never onto the leader', ()
   assert.equal(model.state, 'idle');
 });
 
+test('Follower stays put while the leader walks back over it, then follows again', () => {
+  const trail = new Trail([0, 0]);
+  const model = stubModel();
+  const f = new Follower({ model, cell: [1, 0], cellCenter: center });
+  trail.record([1, 0]);
+  trail.record([2, 0]); // leader ahead, follower one step behind
+  trail.record([1, 0]); // leader turns back onto the follower's cell
+  for (let i = 0; i < 100; i++) {
+    f.update(0.02, trail);
+    assert.deepEqual(f.cell, [1, 0]);
+  }
+  trail.record([0, 0]); // leader moves on past it
+  for (let i = 0; i < 100; i++) {
+    f.update(0.02, trail);
+    assert.deepEqual(f.cell, [1, 0]); // already one step behind: no shuffle
+  }
+  trail.record([0, 1]);
+  for (let i = 0; i < 100; i++) f.update(0.02, trail);
+  assert.deepEqual(f.cell, [0, 0]);
+});
+
 test('Follower teleport snaps the model and adds hover height', () => {
   const model = stubModel();
   const f = new Follower({ model, cell: [0, 0], cellCenter: center, hover: 0.5 });
