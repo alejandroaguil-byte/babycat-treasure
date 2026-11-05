@@ -48,6 +48,27 @@ Works on desktop and phones, and can be installed as an app for offline play.
 - **Every level is checked by tests.** Automated checks prove each level can be finished and
   has no spot where the kitten gets stuck.
 
+## Story and characters
+
+Lord Fluff, the Dust Bunny King, hates anything clean and milky. His dust storm blew Grandma
+Hazel's four magic milk glasses across the floating islands, and Mochi sets off to bring them
+back, making friends along the way. The characters talk to each other in short scenes, each
+with their own voice: real speech through the browser's text-to-speech, or a cute procedural
+"chirp" voice that works offline.
+
+| | Character | Role in the game |
+| :-: | --- | --- |
+| 🐱 | **Mochi** | The kitten hero. Can't jump, loves milk |
+| 🐦 | **Pip**, sparrow | Rides along in every world. Tap his button and he flies to the nearest gem (3 hints per level) |
+| 🐢 | **Bruno**, tortoise | World 2. Follows you and blocks the wind when you stand right behind his shell |
+| 🦋 | **Luna**, glow moth | World 3. Lights up the night; her flash freezes nearby wisps |
+| 🐧 | **Pom**, penguin | World 4. Stand still next to him for a warm penguin hug |
+| 🦉 | **Grandma Hazel** | Runs the Cozy Creamery and narrates the adventure |
+| 👑 | **Lord Fluff** | The sneezy villain behind the dust storm |
+
+**Languages:** the whole game, dialogue included, is available in English and Spanish. It
+starts in your device's language and can be switched from the start screen or Settings.
+
 ## The worlds
 
 Each world keeps the mechanics from the ones before it and adds new weather, characters and
@@ -161,8 +182,10 @@ pathfinding, or rolling snowballs down a lane.
 | `src/world/` | three.js models, per-world themes and level construction |
 | `src/render/` | Post-processing (tilt-shift, bloom, sky pass), outlines, adaptive quality |
 | `src/ui/` | Persisted player settings and haptics |
+| `src/story/` | Characters, voices (TTS + chirps), dialogue player and the story script |
+| `src/i18n/` | English and Spanish dictionaries |
 | `public/` | PWA manifest, service worker and app icons |
-| `src/mechanics/` | Weather cycle and particles, enemy behaviors |
+| `src/mechanics/` | Weather cycle and particles, enemy behaviors, companion follow and hint logic |
 | `src/audio.js` | Procedural music (one song per world), ambience and sound effects |
 | `src/effects.js` | Particles: sparkles, dust, confetti, rings |
 | `src/main.js` | Game loop, input, camera, progression and cutscenes |
