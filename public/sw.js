@@ -17,12 +17,26 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-/** Drops cached build assets that the latest page no longer references. */
+// "assets/index-AbC123.js" -> "index.js": the file identity without its content hash.
+const stem = (url) => url.match(/assets\/(.+)-[\w-]{6,}(\.\w+)$/)?.slice(1).join('') ?? null;
+
+/**
+ * Drops cached build assets that were replaced by a newer hashed version of the
+ * same file. Only runs on our own page (never on a captive portal or proxy page),
+ * and assets the HTML does not mention (lazy chunks, textures) are kept.
+ */
 async function pruneAssets(html) {
-  const live = new Set([...html.matchAll(/assets\/[^"'\s)]+/g)].map((m) => new URL(m[0], self.registration.scope).href));
+  if (!html.includes('id="app"')) return;
+  const live = new Map();
+  for (const [ref] of html.matchAll(/assets\/[^"'\s)]+/g)) {
+    const url = new URL(ref, self.registration.scope).href;
+    if (stem(url)) live.set(stem(url), url);
+  }
+  if (!live.size) return;
   const cache = await caches.open(CACHE);
   for (const request of await cache.keys()) {
-    if (request.url.includes('/assets/') && !live.has(request.url)) await cache.delete(request);
+    const current = live.get(stem(request.url));
+    if (current && current !== request.url) await cache.delete(request);
   }
 }
 

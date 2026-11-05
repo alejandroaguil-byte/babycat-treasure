@@ -815,6 +815,7 @@ $('set-sfx').addEventListener('input', (e) => {
 $('set-quality').addEventListener('change', (e) => {
   settings.quality = e.target.value;
   applyQuality();
+  if (game.mode === 'paused') postfx.render(); // a new pixel ratio clears the canvas
   renderQualityNote();
 });
 $('set-vibration').addEventListener('change', (e) => {
