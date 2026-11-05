@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { cellKey } from '../game/grid.js';
+import { cellKey, surfaceAt } from '../game/grid.js';
 import * as M from './models.js';
 
 const BASE_Y = -0.9;
@@ -22,14 +22,14 @@ function canvasTexture(size, draw) {
   return tex;
 }
 
-function dirtTexture(rand) {
+function dirtTexture(rand, d) {
   return canvasTexture(128, (g, s) => {
-    g.fillStyle = '#a06c45';
+    g.fillStyle = d.base;
     g.fillRect(0, 0, s, s);
-    g.fillStyle = '#8c5b38';
+    g.fillStyle = d.strata;
     for (let y = 0; y < s; y += 32) g.fillRect(0, y + 22, s, 6);
     for (let i = 0; i < 40; i++) {
-      g.fillStyle = rand() > 0.5 ? '#b98260' : '#7d5031';
+      g.fillStyle = rand() > 0.5 ? d.light : d.dark;
       g.beginPath();
       g.arc(rand() * s, rand() * s, 2 + rand() * 4, 0, Math.PI * 2);
       g.fill();
@@ -42,46 +42,44 @@ function grassTexture(rand) {
     g.fillStyle = '#ffffff';
     g.fillRect(0, 0, s, s);
     for (let i = 0; i < 90; i++) {
-      g.fillStyle = rand() > 0.5 ? '#e6f5dc' : '#f5fff0';
+      g.fillStyle = rand() > 0.5 ? '#e6efe0' : '#f5fff0';
       g.fillRect(rand() * s, rand() * s, 2, 4);
     }
   });
 }
 
 /**
- * Builds every mesh of the level and returns handles to the interactive parts.
- * `toWorld(x, z, h)` converts grid coordinates to a world-space Vector3.
+ * Builds every mesh of a level under one group and returns handles to its
+ * interactive parts. `toWorld(x, z, h)` converts grid coordinates to world space.
  */
-export function buildWorld(scene, level, toWorld) {
+export function buildWorld(level, theme, toWorld) {
   const def = level.def;
-  const rand = seeded(42);
+  const rand = seeded(42 + def.id * 7);
   const group = new THREE.Group();
-  scene.add(group);
   const pickables = [];
 
   // ---- diorama base tray
   const tray = new THREE.Mesh(
     new RoundedBoxGeometry(level.width + 0.6, 0.5, level.depth + 0.6, 3, 0.2),
-    new THREE.MeshStandardMaterial({ color: '#6b4430', roughness: 1 }),
+    new THREE.MeshStandardMaterial({ color: theme.tray, roughness: 1 }),
   );
   tray.position.set(0, BASE_Y - 0.25, 0);
   tray.receiveShadow = true;
   group.add(tray);
   const rim = new THREE.Mesh(
     new RoundedBoxGeometry(level.width + 0.8, 0.12, level.depth + 0.8, 3, 0.05),
-    new THREE.MeshStandardMaterial({ color: '#f2c14e', roughness: 0.5, metalness: 0.2 }),
+    new THREE.MeshStandardMaterial({ color: theme.rim, roughness: 0.5, metalness: 0.2 }),
   );
   rim.position.set(0, BASE_Y - 0.5, 0);
   group.add(rim);
 
   // ---- terrain columns
-  const dirtTex = dirtTexture(rand);
+  const dirtTex = dirtTexture(rand, theme.dirt);
   const grassTex = grassTexture(rand);
   const capGeo = new RoundedBoxGeometry(1, CAP, 1, 2, 0.06);
-  const capMats = [
-    new THREE.MeshStandardMaterial({ color: '#86d65f', map: grassTex, roughness: 0.9 }),
-    new THREE.MeshStandardMaterial({ color: '#74c552', map: grassTex, roughness: 0.9 }),
-  ];
+  const capMats = theme.grass.map((color) => new THREE.MeshStandardMaterial({ color, map: grassTex, roughness: 0.9 }));
+  const wetMat = new THREE.MeshStandardMaterial({ color: theme.wet, roughness: 0.15, metalness: 0.2 });
+  const iceMat = new THREE.MeshStandardMaterial({ color: theme.ice, roughness: 0.05, metalness: 0.15, emissive: '#3a7fb0', emissiveIntensity: 0.15 });
   const dirtCache = new Map();
   const dirtFor = (dh) => {
     if (!dirtCache.has(dh)) {
@@ -95,6 +93,7 @@ export function buildWorld(scene, level, toWorld) {
     }
     return dirtCache.get(dh);
   };
+  const puddles = [];
 
   for (let z = 0; z < level.depth; z++) {
     for (let x = 0; x < level.width; x++) {
@@ -105,13 +104,25 @@ export function buildWorld(scene, level, toWorld) {
       const { geo, mat } = dirtFor(dh);
       const dirt = new THREE.Mesh(geo, mat);
       dirt.position.set(p.x, BASE_Y + dh / 2, p.z);
-      const cap = new THREE.Mesh(capGeo, capMats[(x + z) % 2]);
+      const kind = surfaceAt(level, [x, z]);
+      const cap = new THREE.Mesh(capGeo, kind === 'ice' ? iceMat : kind === 'wet' ? wetMat : capMats[(x + z) % 2]);
       cap.position.set(p.x, h - CAP / 2, p.z);
       for (const m of [dirt, cap]) {
         m.castShadow = m.receiveShadow = true;
         m.userData.cell = [x, z];
         group.add(m);
         pickables.push(m);
+      }
+      if (kind) {
+        const shine = new THREE.Mesh(
+          new THREE.CircleGeometry(0.22 + rand() * 0.12, 16),
+          new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: kind === 'ice' ? 0.35 : 0.18, depthWrite: false }),
+        );
+        shine.rotation.x = -Math.PI / 2;
+        shine.position.set(p.x + (rand() - 0.5) * 0.3, h + 0.005, p.z + (rand() - 0.5) * 0.3);
+        shine.scale.x = 1.6;
+        group.add(shine);
+        puddles.push(shine);
       }
     }
   }
@@ -123,34 +134,34 @@ export function buildWorld(scene, level, toWorld) {
   };
 
   // ---- decor
-  for (const d of def.decor) {
-    const obj = placeOn(M.createDecor(d.type, rand), d.at);
+  for (const d of def.decor ?? []) {
+    const obj = placeOn(M.createDecor(d.type, rand, theme), d.at);
     obj.rotation.y = Math.floor(rand() * 4) * (Math.PI / 2);
   }
+  const listed = ['gems', 'coins', 'sprouts', 'keys', 'gates', 'fish', 'fireflies', 'cocoa', 'campfires'];
   const occupied = new Set([
-    ...def.decor.map((d) => cellKey(...d.at)),
-    ...def.gems.map((c) => cellKey(...c)),
-    ...def.coins.map((c) => cellKey(...c)),
-    ...def.sprouts.map((c) => cellKey(...c)),
-    cellKey(...def.button), cellKey(...def.milk), cellKey(...def.start),
+    ...(def.decor ?? []).map((d) => cellKey(...d.at)),
+    ...listed.flatMap((k) => (def[k] ?? []).map((c) => cellKey(...c))),
+    ...(def.snowmen ?? []).map((s) => cellKey(...s.at)),
+    ...[def.switch, def.milk, def.start].filter(Boolean).map((c) => cellKey(...c)),
   ]);
   for (let z = 0; z < level.depth; z++) {
     for (let x = 0; x < level.width; x++) {
-      if (level.heights[z][x] === null || occupied.has(cellKey(x, z)) || rand() > 0.35) continue;
-      const f = placeOn(M.createDecor('flowers', rand), [x, z]);
+      if (level.heights[z][x] === null || surfaceAt(level, [x, z]) || occupied.has(cellKey(x, z)) || rand() > 0.35) continue;
+      const f = placeOn(M.createDecor('flowers', rand, theme), [x, z]);
       f.position.x += (rand() > 0.5 ? 1 : -1) * 0.33;
       f.position.z += (rand() > 0.5 ? 1 : -1) * 0.33;
     }
   }
 
   // ---- ladders (mounted on the face of the higher column)
-  for (const { a, b } of def.ladders) {
-    const ha = level.heights[a[1]][a[0]];
-    const hb = level.heights[b[1]][b[0]];
+  const colHeight = ([x, z]) => level.heights[z][x] ?? level.bridges.get(cellKey(x, z))?.h;
+  for (const { a, b } of def.ladders ?? []) {
+    const ha = colHeight(a);
+    const hb = colHeight(b);
     const [low, high] = ha < hb ? [a, b] : [b, a];
     const hLow = Math.min(ha, hb);
-    const hHigh = Math.max(ha, hb);
-    const ladder = M.createLadder(hHigh - hLow);
+    const ladder = M.createLadder(Math.max(ha, hb) - hLow);
     const pl = toWorld(...low, hLow);
     const ph = toWorld(...high, hLow);
     ladder.position.copy(pl.clone().lerp(ph, 0.5));
@@ -160,8 +171,8 @@ export function buildWorld(scene, level, toWorld) {
     group.add(ladder);
   }
 
-  // ---- bridge (hidden until the button is pressed)
-  const bridges = def.bridges.map((b) => {
+  // ---- bridges (hidden until their trigger fires)
+  const bridges = (def.bridges ?? []).map((b) => {
     const mesh = M.createBridgeBlock();
     const finalPos = toWorld(b.x, b.z, b.h);
     mesh.position.copy(finalPos).add(new THREE.Vector3(0, -6, 0));
@@ -173,28 +184,53 @@ export function buildWorld(scene, level, toWorld) {
       }
     });
     group.add(mesh);
-    return { cell: [b.x, b.z], mesh, finalPos };
+    return { cell: [b.x, b.z], trigger: b.trigger ?? 'switch', mesh, finalPos };
   });
 
-  // ---- interactive objects
-  const button = M.createButton();
-  placeOn(button.root, def.button);
+  let button = null;
+  if (def.switch) {
+    button = M.createButton();
+    placeOn(button.root, def.switch);
+  }
 
-  const gems = def.gems.map((cell, i) => {
-    const g = M.createGem(GEM_COLORS[i % GEM_COLORS.length]);
+  const gates = (def.gates ?? []).map((cell) => {
+    const g = M.createGate();
     placeOn(g.root, cell);
-    return { cell, ...g, color: GEM_COLORS[i % GEM_COLORS.length], collected: false };
+    // Bars face the passage: along z when there is ground north and south, else along x.
+    const has = (x, z) => level.heights[z]?.[x] !== null && level.heights[z]?.[x] !== undefined;
+    if (!(has(cell[0], cell[1] - 1) && has(cell[0], cell[1] + 1))) g.root.rotation.y = Math.PI / 2;
+    return { cell, ...g };
   });
-  const coins = def.coins.map((cell, i) => {
+
+  // ---- collectibles
+  const items = [];
+  const addItems = (kind, cells, factory) =>
+    (cells ?? []).forEach((cell, i) => {
+      const obj = factory(i);
+      placeOn(obj.root, cell);
+      items.push({ kind, cell, ...obj, collected: false, index: i });
+    });
+  addItems('gem', def.gems, (i) => ({ ...M.createGem(GEM_COLORS[i % 3]), color: GEM_COLORS[i % 3] }));
+  addItems('coin', def.coins, (i) => {
     const c = M.createCoin();
-    placeOn(c.root, cell);
     c.holder.rotation.y = i * 0.6;
-    return { cell, ...c, collected: false };
+    return c;
   });
-  const sprouts = def.sprouts.map((cell) => {
+  addItems('key', def.keys, () => M.createKey());
+  addItems('fish', def.fish, () => M.createFish());
+  addItems('firefly', def.fireflies, () => M.createFirefly());
+  addItems('cocoa', def.cocoa, () => M.createCocoa());
+
+  const sprouts = (def.sprouts ?? []).map((cell) => {
     const s = M.createSprout();
     placeOn(s.root, cell);
     return { cell, ...s, ready: true, regrow: 0 };
+  });
+
+  const campfires = (def.campfires ?? []).map((cell) => {
+    const c = M.createCampfire();
+    placeOn(c.root, cell);
+    return { cell, ...c };
   });
 
   const milk = M.createMilk();
@@ -202,15 +238,13 @@ export function buildWorld(scene, level, toWorld) {
 
   // ---- clouds around the diorama
   const clouds = [];
+  const radiusBase = Math.max(level.width, level.depth) * 0.8 + 3;
   for (let i = 0; i < 7; i++) {
-    const c = M.createCloud(rand);
-    const angle = (i / 7) * Math.PI * 2;
-    const radius = 10 + rand() * 4;
-    c.userData = { angle, radius, speed: 0.02 + rand() * 0.03, y: -2 + rand() * 7 };
-    scene.add(c);
+    const c = M.createCloud(rand, theme.clouds);
+    c.userData = { angle: (i / 7) * Math.PI * 2, radius: radiusBase + rand() * 4, speed: 0.02 + rand() * 0.03, y: -2 + rand() * 7 };
+    group.add(c);
     clouds.push(c);
   }
 
-  return { group, pickables, bridges, button, gems, coins, sprouts, milk, clouds };
+  return { group, pickables, bridges, button, gates, items, sprouts, campfires, milk, clouds, puddles };
 }
-

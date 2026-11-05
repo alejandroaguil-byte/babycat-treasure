@@ -81,6 +81,14 @@ export class Effects {
     this.items.push({ obj: mesh, ring: true, life: 0.5, age: 0 });
   }
 
+  clear() {
+    for (const p of this.items) {
+      this.scene.remove(p.obj);
+      p.obj.material.dispose();
+    }
+    this.items.length = 0;
+  }
+
   dust(pos, count = 6) {
     this.burst({ pos, count, colors: ['#f3ead8', '#e2d4bb'], speed: 1.2, up: 0.8, gravity: -1, life: 0.5, size: 0.22, additive: false });
   }

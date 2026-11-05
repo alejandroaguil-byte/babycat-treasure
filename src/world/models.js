@@ -455,13 +455,14 @@ export function createBridgeBlock() {
   return root;
 }
 
-export function createDecor(type, rand) {
+export function createDecor(type, rand, theme) {
   const root = new THREE.Group();
+  const pick = (list) => list[Math.floor(rand() * list.length)];
   if (type === 'tree') {
     const trunk = mesh(new THREE.CylinderGeometry(0.08, 0.12, 0.5, 8), mat('#8a5a34'));
     trunk.position.y = 0.25;
     root.add(trunk);
-    const leaves = mat('#4caf50', { flatShading: true });
+    const leaves = mat(pick(theme.foliage), { flatShading: true });
     [[0, 0.75, 0, 0.38], [0.15, 1.0, 0.05, 0.28], [-0.12, 1.05, -0.05, 0.25]].forEach(([x, y, z, r]) => {
       const l = mesh(new THREE.IcosahedronGeometry(r, 1), leaves);
       l.position.set(x, y, z);
@@ -489,7 +490,7 @@ export function createDecor(type, rand) {
     r2.position.set(0.25, 0.1, 0.2);
     root.add(r2);
   } else if (type === 'flowers') {
-    const colors = ['#ff7eb6', '#ffe066', '#ffffff', '#b28dff'];
+    const colors = theme.flowers;
     for (let i = 0; i < 3; i++) {
       const g = new THREE.Group();
       g.position.set((rand() - 0.5) * 0.25, 0, (rand() - 0.5) * 0.25);
@@ -502,13 +503,15 @@ export function createDecor(type, rand) {
       g.add(bloom);
       root.add(g);
     }
+  } else {
+    createExtraDecor(type, root, rand, theme);
   }
   return root;
 }
 
-export function createCloud(rand) {
+export function createCloud(rand, color = '#ffffff') {
   const root = new THREE.Group();
-  const m = mat('#ffffff', { roughness: 1, flatShading: true });
+  const m = mat(color, { roughness: 1, flatShading: true });
   const n = 3 + Math.floor(rand() * 3);
   for (let i = 0; i < n; i++) {
     const p = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5 + rand() * 0.5, 1), m);
@@ -516,4 +519,325 @@ export function createCloud(rand) {
     root.add(p);
   }
   return root;
+}
+
+function createExtraDecor(type, root, rand, theme) {
+  if (type === 'pine') {
+    const trunk = mesh(new THREE.CylinderGeometry(0.07, 0.1, 0.35, 8), mat('#6b4a32'));
+    trunk.position.y = 0.17;
+    root.add(trunk);
+    const needles = mat(theme.foliage[0], { flatShading: true });
+    const snow = mat('#ffffff', { flatShading: true });
+    [[0.42, 0.42, 0.35], [0.72, 0.33, 0.3], [0.98, 0.22, 0.26]].forEach(([y, r, h]) => {
+      const c = mesh(new THREE.ConeGeometry(r, h + 0.1, 8), needles);
+      c.position.y = y;
+      root.add(c);
+      const cap = mesh(new THREE.ConeGeometry(r * 0.75, h * 0.45, 8), snow, false);
+      cap.position.y = y + h * 0.3;
+      root.add(cap);
+    });
+  } else if (type === 'mushroom') {
+    const stem = mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.4, 10), mat('#f1e6d2'));
+    stem.position.y = 0.2;
+    root.add(stem);
+    const capMat = mat('#7b5cff', { emissive: '#5b3cff', emissiveIntensity: 0.6 });
+    const cap = mesh(new THREE.SphereGeometry(0.34, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), capMat);
+    cap.position.y = 0.38;
+    cap.scale.y = 0.7;
+    root.add(cap);
+    for (let i = 0; i < 5; i++) {
+      const dot = mesh(new THREE.SphereGeometry(0.04, 8, 6), mat('#d8fbff', { emissive: '#9ff0ff', emissiveIntensity: 1 }), false);
+      const a = (i / 5) * Math.PI * 2;
+      dot.position.set(Math.cos(a) * 0.22, 0.52, Math.sin(a) * 0.22);
+      root.add(dot);
+    }
+  } else if (type === 'lamp') {
+    const post = mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.9, 8), mat('#2b2a3a', { metalness: 0.5 }));
+    post.position.y = 0.45;
+    root.add(post);
+    const bulb = mesh(new THREE.SphereGeometry(0.12, 12, 10), mat('#fff0b0', { emissive: '#ffcc55', emissiveIntensity: 2 }), false);
+    bulb.position.y = 0.95;
+    root.add(bulb);
+    const light = new THREE.PointLight('#ffcc66', 4, 4, 1.6);
+    light.position.y = 0.95;
+    root.add(light);
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: '#ffcc66', transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending }));
+    halo.scale.setScalar(1.1);
+    halo.position.y = 0.95;
+    root.add(halo);
+  } else if (type === 'stump') {
+    const s = mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.3, 12), mat('#8a5a34'));
+    s.position.y = 0.15;
+    root.add(s);
+    const top = mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.02, 12), mat('#d9b07a'), false);
+    top.position.y = 0.31;
+    root.add(top);
+  } else if (type === 'pumpkin') {
+    const p = mesh(new THREE.SphereGeometry(0.3, 12, 10), mat('#ff8a1f', { flatShading: true }));
+    p.scale.y = 0.75;
+    p.position.y = 0.22;
+    root.add(p);
+    const stem = mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.14, 6), mat('#4b7a2a'));
+    stem.position.y = 0.5;
+    root.add(stem);
+  }
+}
+
+// ---------------------------------------------------------------- new characters
+export function createHedgehog() {
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+  const belly = mesh(new THREE.SphereGeometry(0.2, 14, 10), mat('#e8c9a0'));
+  belly.scale.set(1, 0.85, 1.2);
+  body.add(belly);
+  const spikeMat = mat('#6b4a32', { flatShading: true });
+  const spikeGeo = new THREE.ConeGeometry(0.05, 0.2, 5);
+  const up = new THREE.Vector3(0, 1, 0);
+  for (let i = 0; i < 26; i++) {
+    const dir = new THREE.Vector3().randomDirection();
+    if (dir.z > 0.35 || dir.y < -0.2) dir.set(dir.x, Math.abs(dir.y), -Math.abs(dir.z));
+    dir.normalize();
+    const spike = mesh(spikeGeo, spikeMat);
+    spike.position.copy(dir).multiplyScalar(0.19);
+    spike.quaternion.setFromUnitVectors(up, dir);
+    body.add(spike);
+  }
+  const snout = mesh(new THREE.SphereGeometry(0.06, 10, 8), mat('#e8c9a0'));
+  snout.position.set(0, -0.02, 0.24);
+  body.add(snout);
+  const nose = mesh(new THREE.SphereGeometry(0.025, 8, 6), mat('#1b1424'), false);
+  nose.position.set(0, -0.01, 0.3);
+  body.add(nose);
+  for (const s of [-1, 1]) {
+    const eye = mesh(new THREE.SphereGeometry(0.025, 8, 6), mat('#1b1424'), false);
+    eye.position.set(s * 0.07, 0.05, 0.2);
+    body.add(eye);
+  }
+  const stars = new THREE.Group(); // shown while stunned
+  for (let i = 0; i < 3; i++) {
+    const st = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: '#ffe066', blending: THREE.AdditiveBlending, depthWrite: false }));
+    st.scale.setScalar(0.16);
+    st.position.set(Math.cos((i / 3) * Math.PI * 2) * 0.25, 0.45, Math.sin((i / 3) * Math.PI * 2) * 0.25);
+    stars.add(st);
+  }
+  stars.visible = false;
+  root.add(stars);
+  return { root, body, stars };
+}
+
+export function createWisp() {
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+  const ghostMat = mat('#bff3ff', { emissive: '#6fe3ff', emissiveIntensity: 0.9, transparent: true, opacity: 0.85 });
+  const head = mesh(new THREE.SphereGeometry(0.24, 18, 14), ghostMat, false);
+  body.add(head);
+  const tail = mesh(new THREE.ConeGeometry(0.2, 0.4, 14), ghostMat, false);
+  tail.rotation.x = Math.PI;
+  tail.position.y = -0.25;
+  body.add(tail);
+  for (const s of [-1, 1]) {
+    const eye = mesh(new THREE.SphereGeometry(0.045, 10, 8), mat('#1b1424'), false);
+    eye.position.set(s * 0.08, 0.04, 0.2);
+    eye.scale.y = 1.4;
+    body.add(eye);
+  }
+  const mouth = mesh(new THREE.TorusGeometry(0.04, 0.012, 6, 12, Math.PI), mat('#1b1424'), false);
+  mouth.position.set(0, -0.06, 0.22);
+  mouth.rotation.z = Math.PI;
+  body.add(mouth);
+  const light = new THREE.PointLight('#6fe3ff', 3, 3.5, 1.5);
+  body.add(light);
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: '#6fe3ff', transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending }));
+  halo.scale.setScalar(1.2);
+  body.add(halo);
+  return { root, body, ghostMat };
+}
+
+export function createSnowman() {
+  const root = new THREE.Group();
+  const snow = mat('#ffffff', { roughness: 0.9 });
+  [[0.25, 0.3], [0.62, 0.22], [0.9, 0.15]].forEach(([y, r]) => {
+    const b = mesh(new THREE.SphereGeometry(r, 16, 12), snow);
+    b.position.y = y;
+    root.add(b);
+  });
+  const nose = mesh(new THREE.ConeGeometry(0.035, 0.18, 8), mat('#ff8a1f'));
+  nose.rotation.x = Math.PI / 2;
+  nose.position.set(0, 0.9, 0.2);
+  root.add(nose);
+  const coal = mat('#1b1424');
+  for (const s of [-1, 1]) {
+    const eye = mesh(new THREE.SphereGeometry(0.025, 8, 6), coal, false);
+    eye.position.set(s * 0.06, 0.96, 0.13);
+    root.add(eye);
+    const brow = mesh(new THREE.BoxGeometry(0.07, 0.015, 0.015), coal, false);
+    brow.position.set(s * 0.06, 1.01, 0.13);
+    brow.rotation.z = s * -0.4;
+    root.add(brow);
+    const arm = mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.35, 5), mat('#6b4a32'));
+    arm.position.set(s * 0.32, 0.7, 0);
+    arm.rotation.z = s * 1.0;
+    root.add(arm);
+  }
+  const hat = mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.16, 12), mat('#2b2a3a'));
+  hat.position.y = 1.1;
+  root.add(hat);
+  const brim = mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.02, 12), mat('#2b2a3a'));
+  brim.position.y = 1.02;
+  root.add(brim);
+  const scarf = mesh(new THREE.TorusGeometry(0.15, 0.04, 8, 16), mat('#e63e62'));
+  scarf.rotation.x = Math.PI / 2;
+  scarf.position.y = 0.78;
+  root.add(scarf);
+  return { root };
+}
+
+const snowballGeo = new THREE.IcosahedronGeometry(0.17, 1);
+export function createSnowball() {
+  return mesh(snowballGeo, mat('#ffffff', { flatShading: true, roughness: 0.8 }));
+}
+
+// ---------------------------------------------------------------- new items
+export function createKey() {
+  const root = new THREE.Group();
+  const holder = new THREE.Group();
+  holder.position.y = 0.45;
+  root.add(holder);
+  const gold = mat('#ffd23f', { metalness: 0.7, roughness: 0.2, emissive: '#a07000', emissiveIntensity: 0.4 });
+  const ring = mesh(new THREE.TorusGeometry(0.09, 0.03, 8, 20), gold);
+  ring.position.y = 0.12;
+  holder.add(ring);
+  const shaft = mesh(new THREE.BoxGeometry(0.04, 0.24, 0.04), gold);
+  shaft.position.y = -0.06;
+  holder.add(shaft);
+  for (const y of [-0.14, -0.08]) {
+    const tooth = mesh(new THREE.BoxGeometry(0.07, 0.03, 0.04), gold);
+    tooth.position.set(0.05, y, 0);
+    holder.add(tooth);
+  }
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: '#ffe066', transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }));
+  halo.scale.setScalar(0.8);
+  holder.add(halo);
+  return { root, holder };
+}
+
+export function createGate() {
+  const root = new THREE.Group();
+  const wood = mat('#7a4a2a');
+  const iron = mat('#4a4a5a', { metalness: 0.6, roughness: 0.4 });
+  const bars = new THREE.Group();
+  root.add(bars);
+  for (let i = -2; i <= 2; i++) {
+    const bar = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.9, 6), iron);
+    bar.position.set(i * 0.17, 0.45, 0);
+    bars.add(bar);
+  }
+  for (const y of [0.15, 0.75]) {
+    const rail = mesh(new THREE.BoxGeometry(0.85, 0.06, 0.06), wood);
+    rail.position.y = y;
+    bars.add(rail);
+  }
+  const lock = mesh(new THREE.BoxGeometry(0.16, 0.16, 0.08), mat('#ffd23f', { metalness: 0.7, roughness: 0.3 }));
+  lock.position.set(0, 0.45, 0.06);
+  bars.add(lock);
+  for (const s of [-1, 1]) {
+    const post = mesh(new THREE.BoxGeometry(0.1, 1.05, 0.1), wood);
+    post.position.set(s * 0.46, 0.52, 0);
+    root.add(post);
+  }
+  return { root, bars, lock };
+}
+
+export function createFish() {
+  const root = new THREE.Group();
+  const holder = new THREE.Group();
+  holder.position.y = 0.4;
+  root.add(holder);
+  const fishMat = mat('#6ec6ff', { emissive: '#2a7ab0', emissiveIntensity: 0.3, roughness: 0.3, metalness: 0.2 });
+  const body = mesh(new THREE.SphereGeometry(0.13, 14, 10), fishMat);
+  body.scale.set(1.5, 0.8, 0.5);
+  holder.add(body);
+  const tail = mesh(new THREE.ConeGeometry(0.09, 0.14, 4), fishMat);
+  tail.rotation.z = Math.PI / 2;
+  tail.position.x = -0.24;
+  holder.add(tail);
+  const eye = mesh(new THREE.SphereGeometry(0.022, 8, 6), mat('#1b1424'), false);
+  eye.position.set(0.12, 0.03, 0.055);
+  holder.add(eye);
+  const heart = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: '#ff7aa0', transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }));
+  heart.scale.setScalar(0.7);
+  holder.add(heart);
+  return { root, holder };
+}
+
+export function createFirefly() {
+  const root = new THREE.Group();
+  const holder = new THREE.Group();
+  holder.position.y = 0.5;
+  root.add(holder);
+  const glow = mesh(new THREE.SphereGeometry(0.06, 10, 8), mat('#fffbb0', { emissive: '#d8ff5a', emissiveIntensity: 2 }), false);
+  holder.add(glow);
+  const wingMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+  for (const s of [-1, 1]) {
+    const w = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.06), wingMat);
+    w.position.set(s * 0.06, 0.04, 0);
+    w.rotation.z = s * 0.4;
+    holder.add(w);
+  }
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: '#d8ff5a', transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending }));
+  halo.scale.setScalar(0.9);
+  holder.add(halo);
+  return { root, holder, halo };
+}
+
+export function createCocoa() {
+  const root = new THREE.Group();
+  const holder = new THREE.Group();
+  holder.position.y = 0.3;
+  root.add(holder);
+  const cup = mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.18, 16), mat('#e63e62'));
+  holder.add(cup);
+  const drink = mesh(new THREE.CylinderGeometry(0.105, 0.105, 0.02, 16), mat('#6b3a22'), false);
+  drink.position.y = 0.085;
+  holder.add(drink);
+  const handle = mesh(new THREE.TorusGeometry(0.05, 0.015, 6, 12), mat('#e63e62'));
+  handle.position.x = 0.13;
+  holder.add(handle);
+  const marsh = mesh(new THREE.BoxGeometry(0.05, 0.04, 0.05), mat('#ffffff'), false);
+  marsh.position.set(0.02, 0.105, 0);
+  holder.add(marsh);
+  return { root, holder };
+}
+
+export function createCampfire() {
+  const root = new THREE.Group();
+  const stone = mat('#8a8f99', { flatShading: true });
+  for (let i = 0; i < 7; i++) {
+    const s = mesh(new THREE.DodecahedronGeometry(0.08, 0), stone);
+    const a = (i / 7) * Math.PI * 2;
+    s.position.set(Math.cos(a) * 0.26, 0.05, Math.sin(a) * 0.26);
+    root.add(s);
+  }
+  const wood = mat('#6b4a32');
+  for (let i = 0; i < 3; i++) {
+    const log = mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.4, 6), wood);
+    log.rotation.z = Math.PI / 2;
+    log.rotation.y = (i / 3) * Math.PI;
+    log.position.y = 0.06;
+    root.add(log);
+  }
+  const flames = [];
+  const colors = ['#ff4d1f', '#ff9a1f', '#ffe066'];
+  colors.forEach((c, i) => {
+    const f = mesh(new THREE.ConeGeometry(0.15 - i * 0.04, 0.4 - i * 0.08, 8), mat(c, { emissive: c, emissiveIntensity: 1.5, transparent: true, opacity: 0.9 }), false);
+    f.position.y = 0.25 - i * 0.02;
+    root.add(f);
+    flames.push(f);
+  });
+  const light = new THREE.PointLight('#ff9a3d', 4, 4, 1.5);
+  light.position.y = 0.5;
+  root.add(light);
+  return { root, flames, light };
 }

@@ -1,8 +1,11 @@
-// Level layout. Each character of `map` is a column height ('.' = empty).
-// Rows are z (back to front), columns are x (left to right).
-export const LEVEL_1 = {
+// Level 1 — sunny meadow. Introduces walking, ladders, a switch bridge and a patrolling enemy.
+// Map: each character is a column height ('.' = empty). Rows are z, columns are x.
+export default {
+  id: 1,
   episode: 'Episode 1',
   title: 'The Milk Tower',
+  theme: 'meadow',
+  mission: 'Collect the gems and reach the glass of milk!',
   map: [
     '2222..444',
     '2222.2222',
@@ -16,31 +19,21 @@ export const LEVEL_1 = {
   ],
   start: [1, 7],
   milk: [6, 0],
-  button: [0, 0],
+  switch: [0, 0],
   ladders: [
     { a: [1, 5], b: [1, 4] },
     { a: [7, 1], b: [7, 0] },
   ],
-  bridges: [{ x: 4, z: 2, h: 2 }],
-  gems: [
-    [7, 6],
-    [3, 0],
-    [8, 4],
-  ],
+  bridges: [{ x: 4, z: 2, h: 2, trigger: 'switch' }],
+  gems: [[7, 6], [3, 0], [8, 4]],
   coins: [
     [2, 6], [3, 6], [3, 7], [4, 7],
     [0, 3], [1, 2], [2, 2],
     [5, 1], [6, 1], [6, 3], [5, 4],
     [6, 7],
   ],
-  sprouts: [
-    [2, 8],
-    [0, 6],
-  ],
-  // Dust bunny patrol loop (cells, walked in order and repeated).
-  enemyPath: [
-    [5, 5], [8, 5], [8, 8], [5, 8],
-  ],
+  sprouts: [[2, 8], [0, 6]],
+  enemies: [{ type: 'dust', path: [[5, 5], [8, 5], [8, 8], [5, 8]], speed: 1.5 }],
   decor: [
     { type: 'tree', at: [3, 8] },
     { type: 'tree', at: [0, 8] },
